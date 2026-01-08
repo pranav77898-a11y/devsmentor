@@ -1,19 +1,17 @@
 import Navbar from "@/components/Navbar";
-import HeroSection from "@/components/HeroSection";
-import FeaturesSection from "@/components/FeaturesSection";
 import PricingSection from "@/components/PricingSection";
 import Footer from "@/components/Footer";
 
-const Index = () => {
+const PricingPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <HeroSection />
-      <FeaturesSection />
-      <PricingSection />
+      <div className="pt-20">
+        <PricingSection />
+      </div>
       <Footer />
     </div>
   );
 };
 
-export default Index;
+export default PricingPage;
