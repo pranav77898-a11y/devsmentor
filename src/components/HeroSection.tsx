@@ -1,7 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Brain, Target, Rocket } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const HeroSection = () => {
+  const { user } = useAuth();
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
       {/* Animated Background Orbs */}
@@ -37,14 +41,18 @@ const HeroSection = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-slide-up opacity-0" style={{ animationDelay: '0.3s' }}>
-            <Button variant="hero" size="xl" className="w-full sm:w-auto">
-              <Brain className="w-5 h-5" />
-              Start Career Analysis
-              <ArrowRight className="w-5 h-5" />
-            </Button>
-            <Button variant="glass" size="xl" className="w-full sm:w-auto">
-              View Demo
-            </Button>
+            <Link to={user ? "/career" : "/signup"}>
+              <Button variant="hero" size="xl" className="w-full sm:w-auto">
+                <Brain className="w-5 h-5" />
+                {user ? "Go to Dashboard" : "Start Career Analysis"}
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+            </Link>
+            <Link to="/pricing">
+              <Button variant="glass" size="xl" className="w-full sm:w-auto">
+                View Pricing
+              </Button>
+            </Link>
           </div>
 
           {/* Stats */}
