@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Sparkles, Zap } from "lucide-react";
 
@@ -6,12 +7,13 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const navLinks = [
-    { name: "Career AI", href: "#career" },
-    { name: "Roadmap", href: "#roadmap" },
-    { name: "Mind Map", href: "#mindmap" },
-    { name: "Projects", href: "#projects" },
-    { name: "Jobs", href: "#jobs" },
-    { name: "Pricing", href: "#pricing" },
+    { name: "Career AI", href: "/career" },
+    { name: "Roadmap", href: "/roadmap" },
+    { name: "Mind Map", href: "/mindmap" },
+    { name: "Projects", href: "/projects" },
+    { name: "Jobs", href: "/jobs" },
+    { name: "Resume", href: "/resume" },
+    { name: "Pricing", href: "/pricing" },
   ];
 
   return (
@@ -19,19 +21,19 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <a href="#" className="flex items-center gap-2 group">
+          <Link to="/" className="flex items-center gap-2 group">
             <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center shadow-[0_0_20px_hsl(187_94%_50%/0.3)] group-hover:shadow-[0_0_30px_hsl(187_94%_50%/0.5)] transition-all duration-300">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold gradient-text">DevMentor AI</span>
-          </a>
+          </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <a key={link.name} href={link.href} className="nav-link text-sm">
+              <Link key={link.name} to={link.href} className="nav-link text-sm">
                 {link.name}
-              </a>
+              </Link>
             ))}
           </div>
 
@@ -60,14 +62,14 @@ const Navbar = () => {
           <div className="md:hidden py-4 border-t border-border/50 animate-fade-in">
             <div className="flex flex-col gap-3">
               {navLinks.map((link) => (
-                <a
+                <Link
                   key={link.name}
-                  href={link.href}
+                  to={link.href}
                   className="nav-link py-2"
                   onClick={() => setIsOpen(false)}
                 >
                   {link.name}
-                </a>
+                </Link>
               ))}
               <div className="flex flex-col gap-2 mt-4">
                 <Button variant="glass" className="w-full">
