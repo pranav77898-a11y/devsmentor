@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { GitBranch, Sparkles, Download, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface MindMapGroup {
   category: string;
@@ -18,45 +20,21 @@ const MindMapBuilder = () => {
     
     setIsGenerating(true);
     
-    // Simulate AI generation
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Sample mind map
-    const sampleMindMap: MindMapGroup[] = [
-      {
-        category: "Core Concepts",
-        color: "from-cyan-500 to-cyan-600",
-        nodes: ["Components", "JSX", "Virtual DOM", "Props", "State", "Hooks"],
-      },
-      {
-        category: "State Management",
-        color: "from-teal-500 to-teal-600",
-        nodes: ["useState", "useReducer", "Context API", "Redux", "Zustand", "Jotai"],
-      },
-      {
-        category: "Routing",
-        color: "from-emerald-500 to-emerald-600",
-        nodes: ["React Router", "Dynamic Routes", "Nested Routes", "Protected Routes"],
-      },
-      {
-        category: "Data Fetching",
-        color: "from-green-500 to-green-600",
-        nodes: ["useEffect", "React Query", "SWR", "Axios", "Fetch API"],
-      },
-      {
-        category: "Styling",
-        color: "from-lime-500 to-lime-600",
-        nodes: ["CSS Modules", "Tailwind", "Styled Components", "Emotion", "Sass"],
-      },
-      {
-        category: "Testing",
-        color: "from-yellow-500 to-yellow-600",
-        nodes: ["Jest", "React Testing Library", "Cypress", "Playwright", "Vitest"],
-      },
-    ];
-    
-    setMindMap(sampleMindMap);
-    setIsGenerating(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-mindmap', {
+        body: { topic }
+      });
+
+      if (error) throw error;
+      
+      setMindMap(data.groups || data);
+      toast.success("Mind map generated successfully!");
+    } catch (error) {
+      console.error("Mind map generation error:", error);
+      toast.error("Failed to generate mind map. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -82,6 +60,7 @@ const MindMapBuilder = () => {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               className="input-dark flex-1"
+              onKeyDown={(e) => e.key === 'Enter' && generateMindMap()}
             />
             <Button
               variant="hero"
