@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Brain, Sparkles, TrendingUp, AlertTriangle, DollarSign, Target, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const careerPaths = [
   { id: "aiml", name: "AI/ML Engineering", icon: "🤖" },
@@ -21,98 +24,39 @@ interface AnalysisResult {
   risk: string;
   alternatives: string[];
   trending: boolean;
+  skills_required?: string[];
+  growth_outlook?: string;
+  market_demand?: string;
 }
 
 const CareerAnalyzer = () => {
   const [selectedCareer, setSelectedCareer] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const navigate = useNavigate();
 
   const handleAnalyze = async () => {
     if (!selectedCareer) return;
     
     setIsAnalyzing(true);
     
-    // Simulate AI analysis (will be replaced with actual API call)
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const mockResults: Record<string, AnalysisResult> = {
-      aiml: {
-        career: "AI/ML Engineering",
-        summary: "Excellent career choice with massive growth potential. AI/ML engineers are in extremely high demand across industries. Focus on Python, TensorFlow/PyTorch, and strong mathematical foundations.",
-        confidence_score: 92,
-        salary_range: "₹8-35 LPA",
-        risk: "Low",
-        alternatives: ["Data Science", "MLOps Engineering", "AI Research"],
-        trending: true,
-      },
-      webdev: {
-        career: "Full Stack Development",
-        summary: "Versatile and stable career path. Full stack developers are needed everywhere from startups to enterprises. Master React/Next.js, Node.js, and cloud technologies for best opportunities.",
-        confidence_score: 88,
-        salary_range: "₹6-30 LPA",
-        risk: "Low",
-        alternatives: ["Frontend Specialist", "Backend Engineer", "Technical Architect"],
-        trending: true,
-      },
-      cybersec: {
-        career: "Cybersecurity",
-        summary: "Critical and growing field with talent shortage. Organizations are investing heavily in security. Focus on ethical hacking, network security, and compliance frameworks.",
-        confidence_score: 90,
-        salary_range: "₹7-40 LPA",
-        risk: "Low",
-        alternatives: ["Security Analyst", "Penetration Tester", "Security Architect"],
-        trending: true,
-      },
-      data: {
-        career: "Data Science",
-        summary: "High-impact role driving business decisions. Data scientists extract insights from complex datasets. Strong foundation in statistics, Python, and visualization tools is essential.",
-        confidence_score: 85,
-        salary_range: "₹7-32 LPA",
-        risk: "Medium",
-        alternatives: ["Data Engineer", "Business Analyst", "ML Engineer"],
-        trending: true,
-      },
-      mobile: {
-        career: "Mobile Development",
-        summary: "Strong market for skilled mobile developers. Cross-platform frameworks like React Native and Flutter are in high demand. Native iOS/Android still commands premium salaries.",
-        confidence_score: 82,
-        salary_range: "₹6-28 LPA",
-        risk: "Medium",
-        alternatives: ["iOS Developer", "Android Developer", "Flutter Developer"],
-        trending: false,
-      },
-      devops: {
-        career: "DevOps/Cloud Engineering",
-        summary: "Essential role in modern tech companies. DevOps engineers bridge development and operations. Master AWS/Azure/GCP, Kubernetes, and CI/CD pipelines.",
-        confidence_score: 91,
-        salary_range: "₹8-35 LPA",
-        risk: "Low",
-        alternatives: ["Cloud Architect", "SRE", "Platform Engineer"],
-        trending: true,
-      },
-      blockchain: {
-        career: "Blockchain/Web3 Development",
-        summary: "Emerging field with high volatility but great potential. Smart contract development and DeFi are key areas. Solidity, Rust, and understanding of cryptography are valuable.",
-        confidence_score: 70,
-        salary_range: "₹10-50 LPA",
-        risk: "High",
-        alternatives: ["Smart Contract Developer", "DeFi Engineer", "Crypto Analyst"],
-        trending: false,
-      },
-      game: {
-        career: "Game Development",
-        summary: "Creative and rewarding career with growing Indian market. Unity and Unreal Engine are essential. Combine programming with artistic skills for best outcomes.",
-        confidence_score: 75,
-        salary_range: "₹4-25 LPA",
-        risk: "Medium",
-        alternatives: ["Unity Developer", "Graphics Programmer", "Game Designer"],
-        trending: false,
-      },
-    };
-    
-    setResult(mockResults[selectedCareer] || mockResults.webdev);
-    setIsAnalyzing(false);
+    try {
+      const careerName = careerPaths.find(c => c.id === selectedCareer)?.name || selectedCareer;
+      
+      const { data, error } = await supabase.functions.invoke('career-analysis', {
+        body: { career: careerName }
+      });
+
+      if (error) throw error;
+      
+      setResult(data);
+      toast.success("Career analysis complete!");
+    } catch (error) {
+      console.error("Career analysis error:", error);
+      toast.error("Failed to analyze career. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const getRiskColor = (risk: string) => {
@@ -226,7 +170,7 @@ const CareerAnalyzer = () => {
                     <span className="text-sm">Alternatives</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {result.alternatives.slice(0, 2).map((alt, i) => (
+                    {result.alternatives?.slice(0, 2).map((alt, i) => (
                       <span key={i} className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground">
                         {alt}
                       </span>
@@ -235,11 +179,24 @@ const CareerAnalyzer = () => {
                 </div>
               </div>
 
+              {result.skills_required && result.skills_required.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2">Required Skills</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {result.skills_required.map((skill, i) => (
+                      <span key={i} className="text-xs px-3 py-1 rounded-full bg-primary/20 text-primary border border-primary/30">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-4">
-                <Button variant="hero" className="flex-1">
+                <Button variant="hero" className="flex-1" onClick={() => navigate('/roadmap')}>
                   Generate Learning Roadmap
                 </Button>
-                <Button variant="glass" className="flex-1">
+                <Button variant="glass" className="flex-1" onClick={() => navigate('/projects')}>
                   View Related Projects
                 </Button>
               </div>

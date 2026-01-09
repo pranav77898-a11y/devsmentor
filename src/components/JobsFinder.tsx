@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Briefcase, Search, MapPin, Building2, Clock, ExternalLink, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Job {
   title: string;
@@ -12,6 +14,8 @@ interface Job {
   skills: string[];
   url: string;
   isInternship: boolean;
+  experience?: string;
+  description?: string;
 }
 
 const JobsFinder = () => {
@@ -25,20 +29,21 @@ const JobsFinder = () => {
     
     setIsSearching(true);
     
-    // Simulate AI-powered job search
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const mockJobs: Job[] = [
-      { title: "Software Engineer", company: "Google", location: "Bangalore", type: "Full-time", salary: "₹20-35 LPA", posted: "2 days ago", skills: ["Python", "Go", "Distributed Systems"], url: "#", isInternship: false },
-      { title: "Frontend Developer", company: "Flipkart", location: "Bangalore", type: "Full-time", salary: "₹15-25 LPA", posted: "1 day ago", skills: ["React", "TypeScript", "Next.js"], url: "#", isInternship: false },
-      { title: "ML Engineer Intern", company: "Microsoft", location: "Hyderabad", type: "Internship", salary: "₹50K/month", posted: "3 days ago", skills: ["Python", "PyTorch", "ML"], url: "#", isInternship: true },
-      { title: "DevOps Engineer", company: "Amazon", location: "Remote", type: "Full-time", salary: "₹18-30 LPA", posted: "5 hours ago", skills: ["AWS", "Kubernetes", "Terraform"], url: "#", isInternship: false },
-      { title: "Backend Developer Intern", company: "Razorpay", location: "Bangalore", type: "Internship", salary: "₹40K/month", posted: "1 week ago", skills: ["Node.js", "PostgreSQL", "Redis"], url: "#", isInternship: true },
-      { title: "Data Scientist", company: "Swiggy", location: "Bangalore", type: "Full-time", salary: "₹22-35 LPA", posted: "4 days ago", skills: ["Python", "SQL", "ML", "Statistics"], url: "#", isInternship: false },
-    ];
-    
-    setJobs(mockJobs);
-    setIsSearching(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('search-jobs', {
+        body: { query: searchQuery }
+      });
+
+      if (error) throw error;
+      
+      setJobs(data.jobs || []);
+      toast.success(`Found ${data.jobs?.length || 0} opportunities!`);
+    } catch (error) {
+      console.error("Job search error:", error);
+      toast.error("Failed to search jobs. Please try again.");
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const filteredJobs = jobs.filter(job => {
@@ -74,6 +79,7 @@ const JobsFinder = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="input-dark pl-12 w-full"
+                  onKeyDown={(e) => e.key === 'Enter' && searchJobs()}
                 />
               </div>
               <Button
@@ -154,6 +160,10 @@ const JobsFinder = () => {
                       </span>
                     </div>
                     
+                    {job.description && (
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{job.description}</p>
+                    )}
+                    
                     <div className="flex flex-wrap gap-2">
                       {job.skills.map((skill, i) => (
                         <span key={i} className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground">
@@ -165,6 +175,9 @@ const JobsFinder = () => {
                   
                   <div className="flex flex-col items-end gap-2">
                     <span className="text-lg font-semibold text-primary">{job.salary}</span>
+                    {job.experience && (
+                      <span className="text-xs text-muted-foreground">{job.experience}</span>
+                    )}
                     <Button variant="glass" size="sm" className="gap-2">
                       Apply Now
                       <ExternalLink className="w-3 h-3" />

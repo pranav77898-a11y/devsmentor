@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Map, Sparkles, Download, Edit3, Lock, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface RoadmapNode {
   id: string;
@@ -25,43 +27,21 @@ const RoadmapBuilder = () => {
     
     setIsGenerating(true);
     
-    // Simulate AI generation
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
-    // Sample roadmap for demonstration
-    const sampleRoadmap = {
-      nodes: [
-        { id: "1", label: "HTML & CSS", level: 0, x: 400, y: 50 },
-        { id: "2", label: "JavaScript Basics", level: 1, x: 400, y: 140 },
-        { id: "3", label: "Git & GitHub", level: 1, x: 250, y: 140 },
-        { id: "4", label: "React.js", level: 2, x: 300, y: 230 },
-        { id: "5", label: "Node.js", level: 2, x: 500, y: 230 },
-        { id: "6", label: "TypeScript", level: 2, x: 400, y: 230 },
-        { id: "7", label: "REST APIs", level: 3, x: 350, y: 320 },
-        { id: "8", label: "Databases", level: 3, x: 500, y: 320 },
-        { id: "9", label: "Authentication", level: 4, x: 400, y: 410 },
-        { id: "10", label: "Deployment", level: 4, x: 550, y: 410 },
-        { id: "11", label: "Full Stack Projects", level: 5, x: 400, y: 500 },
-      ],
-      edges: [
-        { from: "1", to: "2" },
-        { from: "1", to: "3" },
-        { from: "2", to: "4" },
-        { from: "2", to: "5" },
-        { from: "2", to: "6" },
-        { from: "4", to: "7" },
-        { from: "5", to: "7" },
-        { from: "5", to: "8" },
-        { from: "7", to: "9" },
-        { from: "8", to: "9" },
-        { from: "8", to: "10" },
-        { from: "9", to: "11" },
-        { from: "10", to: "11" },
-      ],
-    };
-    
-    setRoadmap(sampleRoadmap);
-    setIsGenerating(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-roadmap', {
+        body: { subject }
+      });
+
+      if (error) throw error;
+      
+      setRoadmap(data);
+      toast.success("Roadmap generated successfully!");
+    } catch (error) {
+      console.error("Roadmap generation error:", error);
+      toast.error("Failed to generate roadmap. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const getLevelColor = (level: number) => {
@@ -102,6 +82,7 @@ const RoadmapBuilder = () => {
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               className="input-dark flex-1"
+              onKeyDown={(e) => e.key === 'Enter' && generateRoadmap()}
             />
             <Button
               variant="hero"

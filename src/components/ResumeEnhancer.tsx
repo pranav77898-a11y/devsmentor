@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileText, Upload, Sparkles, Download, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ResumeAnalysis {
   score: number;
@@ -8,6 +10,8 @@ interface ResumeAnalysis {
   improvements: string[];
   suggestions: string[];
   atsScore: number;
+  keywords_missing?: string[];
+  format_issues?: string[];
 }
 
 const ResumeEnhancer = () => {
@@ -20,35 +24,21 @@ const ResumeEnhancer = () => {
     
     setIsAnalyzing(true);
     
-    // Simulate AI analysis
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
-    const mockAnalysis: ResumeAnalysis = {
-      score: 72,
-      atsScore: 65,
-      strengths: [
-        "Strong technical skills section",
-        "Quantified achievements in experience",
-        "Good use of action verbs",
-        "Clear contact information",
-      ],
-      improvements: [
-        "Add more specific metrics to achievements",
-        "Include relevant keywords for ATS",
-        "Shorten summary to 2-3 lines",
-        "Add links to portfolio/GitHub",
-      ],
-      suggestions: [
-        "Replace 'Responsible for' with action verbs like 'Led', 'Developed', 'Implemented'",
-        "Add industry-specific keywords: React, Node.js, AWS, Agile, CI/CD",
-        "Include a 'Projects' section with GitHub links",
-        "Mention specific tools and versions used",
-        "Add certifications if any",
-      ],
-    };
-    
-    setAnalysis(mockAnalysis);
-    setIsAnalyzing(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-resume', {
+        body: { resumeText }
+      });
+
+      if (error) throw error;
+      
+      setAnalysis(data);
+      toast.success("Resume analysis complete!");
+    } catch (error) {
+      console.error("Resume analysis error:", error);
+      toast.error("Failed to analyze resume. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const getScoreColor = (score: number) => {
@@ -230,6 +220,20 @@ Software Engineer at XYZ Corp (2021-Present)
                       ))}
                     </ul>
                   </div>
+
+                  {/* Missing Keywords */}
+                  {analysis.keywords_missing && analysis.keywords_missing.length > 0 && (
+                    <div className="glass-card p-6">
+                      <h4 className="font-semibold mb-3 text-primary">Missing Keywords</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {analysis.keywords_missing.map((keyword, i) => (
+                          <span key={i} className="text-xs px-3 py-1 rounded-full bg-primary/20 text-primary border border-primary/30">
+                            {keyword}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Pro Feature */}
                   <Button variant="pro" className="w-full gap-2">
