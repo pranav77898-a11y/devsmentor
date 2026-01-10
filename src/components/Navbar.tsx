@@ -23,6 +23,7 @@ const Navbar = () => {
     { name: "Mind Map", href: "/mindmap" },
     { name: "Projects", href: "/projects" },
     { name: "Jobs", href: "/jobs" },
+    { name: "AI Search", href: "/ai-search" },
     { name: "Resume", href: "/resume" },
     { name: "Pricing", href: "/pricing" },
   ];
