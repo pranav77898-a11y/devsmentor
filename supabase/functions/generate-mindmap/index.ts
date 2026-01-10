@@ -18,27 +18,43 @@ serve(async (req) => {
       throw new Error("SAMBANOVA_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert at creating comprehensive mind maps for technical topics. Create well-organized, categorized mind maps that help learners understand complex subjects.`;
+    const systemPrompt = `You are an expert at creating comprehensive mind maps for technical topics. Create well-organized, categorized mind maps with proper node positioning for visual representation.`;
 
     const userPrompt = `Create a detailed mind map for: ${topic}
 
 Return JSON in this exact format:
 {
-  "groups": [
+  "centralTopic": "${topic}",
+  "nodes": [
     {
+      "id": "1",
+      "label": "Concept Name",
       "category": "Category Name",
-      "color": "#hexcolor",
-      "nodes": ["Concept 1", "Concept 2", "Concept 3", "Concept 4"]
+      "color": "#22d3ee",
+      "x": 200,
+      "y": 100,
+      "connections": ["center"]
     }
   ]
 }
 
 Requirements:
-- 5-7 main categories/groups
-- Each category should have 4-6 specific concepts/nodes
-- Use distinct, visually pleasing colors for each category (hex format like #06b6d4)
-- Categories should cover: fundamentals, tools, techniques, best practices, advanced topics
-- Be specific and practical for learners`;
+- Generate 12-16 nodes representing key concepts
+- Distribute nodes evenly around the center (600, 300)
+- Position nodes in a circular/radial pattern:
+  * Top nodes: y around 80-150, x spread 200-1000
+  * Side nodes: y around 250-350, x at 100-200 or 1000-1100
+  * Bottom nodes: y around 450-550, x spread 200-1000
+- Use 5-6 distinct categories with colors:
+  * Fundamentals: #22d3ee (cyan)
+  * Tools: #10b981 (emerald)
+  * Concepts: #8b5cf6 (violet)
+  * Best Practices: #f59e0b (amber)
+  * Advanced: #ef4444 (red)
+  * Resources: #ec4899 (pink)
+- Each node connects to "center"
+- Labels should be concise (1-3 words max)
+- Cover: basics, tools, techniques, best practices, and advanced topics`;
 
     const response = await fetch("https://api.sambanova.ai/v1/chat/completions", {
       method: "POST",

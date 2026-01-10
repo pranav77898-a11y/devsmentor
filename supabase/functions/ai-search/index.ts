@@ -11,56 +11,42 @@ serve(async (req) => {
   }
 
   try {
-    const { subject } = await req.json();
+    const { query } = await req.json();
     const SAMBANOVA_API_KEY = Deno.env.get("SAMBANOVA_API_KEY");
     
     if (!SAMBANOVA_API_KEY) {
       throw new Error("SAMBANOVA_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert learning path designer. Create comprehensive, structured learning roadmaps for tech subjects. Return data in a format suitable for visual node-based representation with proper positioning.`;
+    const systemPrompt = `You are an AI search engine that finds the best learning resources for developers. Generate realistic and helpful search results with actual URLs to popular developer resources like MDN, React docs, official documentation, YouTube channels, GitHub, Stack Overflow, freeCodeCamp, and other reputable sources.`;
 
-    const userPrompt = `Create a detailed learning roadmap for: ${subject}
+    const userPrompt = `Find the best learning resources for: ${query}
 
-Return JSON in this exact format with nodes positioned for a visual flowchart:
+Return JSON in this exact format:
 {
-  "nodes": [
-    { 
-      "id": "1", 
-      "label": "Start Here", 
-      "level": 0, 
-      "x": 450, 
-      "y": 50,
-      "description": "Brief description of what to learn at this step",
-      "duration": "1 week",
-      "resources": [
-        { "title": "Official Documentation", "url": "https://docs.example.com" },
-        { "title": "YouTube Tutorial", "url": "https://youtube.com/watch?v=example" }
-      ]
+  "results": [
+    {
+      "title": "Resource Title",
+      "description": "Brief description of what this resource covers",
+      "url": "https://actual-url-to-resource.com",
+      "type": "documentation|tutorial|video|article|code",
+      "source": "Source name (e.g., MDN, React Docs, YouTube)"
     }
-  ],
-  "edges": [
-    { "from": "1", "to": "2" }
   ]
 }
 
 Requirements:
-- 15-20 nodes covering the complete learning journey from beginner to job-ready
-- Positioning guidelines:
-  * Level 0 (Start): y=50, x=450 (centered)
-  * Level 1: y=120, x spread 150-750
-  * Level 2: y=200, x spread 100-800
-  * Level 3: y=290, x spread 100-800
-  * Level 4: y=380, x spread 150-750
-  * Level 5: y=470, x spread 200-700
-  * Level 6 (Final): y=560, x spread 300-600
-- Include practical skills, tools, and frameworks
-- Each node should have:
-  * Meaningful description (20-40 words)
-  * Realistic duration (1 day to 4 weeks)
-  * 2-3 learning resources with REAL URLs (official docs, MDN, YouTube, freeCodeCamp, etc.)
-- Progress from fundamentals to advanced topics
-- Include project milestones at levels 3 and 5`;
+- Return 6-10 high-quality results
+- Include mix of documentation, tutorials, videos, and articles
+- Use REAL URLs from popular sources:
+  * Documentation: MDN Web Docs (developer.mozilla.org), official docs sites
+  * Tutorials: freeCodeCamp, DigitalOcean, CSS-Tricks, Smashing Magazine
+  * Videos: YouTube (fireship, Traversy Media, The Net Ninja, Web Dev Simplified)
+  * Code: GitHub, CodePen, StackBlitz
+  * Articles: Dev.to, Medium, Hashnode
+- Make descriptions informative and specific
+- Prioritize free resources
+- Include beginner to advanced content`;
 
     const response = await fetch("https://api.sambanova.ai/v1/chat/completions", {
       method: "POST",
@@ -92,13 +78,13 @@ Requirements:
       throw new Error("Failed to parse AI response");
     }
 
-    const roadmap = JSON.parse(jsonMatch[0]);
+    const results = JSON.parse(jsonMatch[0]);
 
-    return new Response(JSON.stringify(roadmap), {
+    return new Response(JSON.stringify(results), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Roadmap generation error:", error);
+    console.error("AI search error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
