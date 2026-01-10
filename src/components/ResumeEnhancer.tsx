@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Upload, Sparkles, Download, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { FileText, Upload, Sparkles, Download, CheckCircle2, AlertCircle, Loader2, Crown, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
+import UpgradePrompt from "@/components/UpgradePrompt";
+import { useNavigate } from "react-router-dom";
 
 interface ResumeAnalysis {
   score: number;
@@ -18,6 +21,9 @@ const ResumeEnhancer = () => {
   const [resumeText, setResumeText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const { isPro } = useSubscription();
+  const navigate = useNavigate();
 
   const analyzeResume = async () => {
     if (!resumeText.trim()) return;
@@ -53,8 +59,25 @@ const ResumeEnhancer = () => {
     return { circumference, offset };
   };
 
+  const handleEnhanceResume = () => {
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
+    // Pro feature: Download enhanced resume
+    toast.success("Enhanced resume downloading... (Pro feature)");
+  };
+
   return (
     <section className="py-24 relative">
+      {showUpgrade && (
+        <UpgradePrompt 
+          feature="AI Resume Enhancement" 
+          message="Upgrade to Pro to download AI-enhanced resumes with optimized formatting and keywords!"
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
+      
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
@@ -65,6 +88,21 @@ const ResumeEnhancer = () => {
           <p className="section-subtitle">
             AI-powered analysis to improve your resume, boost ATS scores, and get more interviews.
           </p>
+          
+          {/* Pro/Free indicator */}
+          <div className="mt-4 flex justify-center">
+            {isPro ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30 text-cyan-400">
+                <Crown className="w-3 h-3" />
+                <span>Full AI Enhancement Access</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/50 border border-border text-muted-foreground">
+                <Lock className="w-3 h-3" />
+                <span>Basic Analysis • Upgrade for Full Enhancement</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="max-w-5xl mx-auto">
@@ -108,7 +146,7 @@ Software Engineer at XYZ Corp (2021-Present)
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5" />
-                    Analyze & Enhance
+                    Analyze Resume
                   </>
                 )}
               </Button>
@@ -235,10 +273,23 @@ Software Engineer at XYZ Corp (2021-Present)
                     </div>
                   )}
 
-                  {/* Pro Feature */}
-                  <Button variant="pro" className="w-full gap-2">
-                    <Download className="w-5 h-5" />
-                    Download Enhanced Resume (Pro)
+                  {/* Enhanced Download - Pro Feature */}
+                  <Button 
+                    variant="pro" 
+                    className="w-full gap-2"
+                    onClick={handleEnhanceResume}
+                  >
+                    {isPro ? (
+                      <>
+                        <Download className="w-5 h-5" />
+                        Download Enhanced Resume
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-5 h-5" />
+                        Download Enhanced Resume (Pro)
+                      </>
+                    )}
                   </Button>
                 </>
               ) : (
