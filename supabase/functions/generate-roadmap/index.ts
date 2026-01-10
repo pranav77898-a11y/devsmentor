@@ -12,59 +12,56 @@ serve(async (req) => {
 
   try {
     const { subject } = await req.json();
-    const BYTEZ_API_KEY = Deno.env.get("BYTEZ_API_KEY");
+    const SAMBANOVA_API_KEY = Deno.env.get("SAMBANOVA_API_KEY");
     
-    if (!BYTEZ_API_KEY) {
-      throw new Error("BYTEZ_API_KEY is not configured");
+    if (!SAMBANOVA_API_KEY) {
+      throw new Error("SAMBANOVA_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert curriculum designer and learning path architect. Create detailed, structured learning roadmaps for technical subjects. Focus on practical, industry-relevant content with clear progression.`;
+    const systemPrompt = `You are an expert learning path designer. Create comprehensive, structured learning roadmaps for tech subjects. Return data in a format suitable for visual node-based representation.`;
 
-    const userPrompt = `Create a comprehensive learning roadmap for: ${subject}
+    const userPrompt = `Create a detailed learning roadmap for: ${subject}
 
-Generate a visual roadmap with nodes and connections. Return JSON in this exact format:
+Return JSON in this exact format with nodes positioned for a visual flowchart:
 {
   "nodes": [
-    {"id": "1", "label": "Node Name", "level": 0, "x": 400, "y": 60},
-    {"id": "2", "label": "Node Name", "level": 1, "x": 200, "y": 140}
+    { "id": "1", "label": "Fundamentals", "level": 0, "x": 400, "y": 50 },
+    { "id": "2", "label": "Topic 1", "level": 1, "x": 200, "y": 150 },
+    { "id": "3", "label": "Topic 2", "level": 1, "x": 600, "y": 150 }
   ],
   "edges": [
-    {"from": "1", "to": "2"},
-    {"from": "1", "to": "3"}
+    { "from": "1", "to": "2" },
+    { "from": "1", "to": "3" }
   ]
 }
 
-Rules:
-- Level 0: Main topic (centered, y=60)
-- Level 1: Core concepts (y=140, spread horizontally)
-- Level 2: Sub-topics (y=220, spread horizontally)
-- Level 3: Advanced topics (y=300, spread horizontally)
-- Level 4: Specializations (y=380, spread horizontally)
-- X coordinates: spread from 100 to 700 based on position
-- Create 15-25 nodes covering the complete learning path
-- Connect nodes logically showing prerequisites
-- Include practical projects and milestones`;
+Requirements:
+- 15-20 nodes covering the complete learning journey
+- Levels: 0 (start), 1-2 (basics), 3-4 (intermediate), 5+ (advanced)
+- X coordinates: 100-700 range, spread based on siblings
+- Y coordinates: level * 100 + 50
+- Include practical projects and real-world skills
+- Progress from beginner to job-ready`;
 
-    const response = await fetch("https://api.bytez.com/models/v2/openai/v1/chat/completions", {
+    const response = await fetch("https://api.sambanova.ai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${BYTEZ_API_KEY}`,
+        "Authorization": `Bearer ${SAMBANOVA_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-4",
+        model: "DeepSeek-V3-0324",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        max_tokens: 2000,
         temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Bytez API error:", response.status, errorText);
+      console.error("SambaNova API error:", response.status, errorText);
       throw new Error(`AI API error: ${response.status}`);
     }
 

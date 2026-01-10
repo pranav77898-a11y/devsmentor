@@ -12,13 +12,13 @@ serve(async (req) => {
 
   try {
     const { resumeText } = await req.json();
-    const BYTEZ_API_KEY = Deno.env.get("BYTEZ_API_KEY");
+    const SAMBANOVA_API_KEY = Deno.env.get("SAMBANOVA_API_KEY");
     
-    if (!BYTEZ_API_KEY) {
-      throw new Error("BYTEZ_API_KEY is not configured");
+    if (!SAMBANOVA_API_KEY) {
+      throw new Error("SAMBANOVA_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert resume reviewer and ATS (Applicant Tracking System) specialist. Analyze resumes for technical roles and provide actionable feedback to improve hiring chances.`;
+    const systemPrompt = `You are an expert resume reviewer and ATS (Applicant Tracking System) specialist for tech roles. Analyze resumes and provide actionable feedback to improve chances of getting interviews at top tech companies.`;
 
     const userPrompt = `Analyze this resume and provide detailed feedback:
 
@@ -27,52 +27,52 @@ ${resumeText}
 Return JSON in this exact format:
 {
   "score": 75,
-  "atsScore": 80,
+  "atsScore": 70,
   "strengths": [
-    "Strength 1 with specific details",
-    "Strength 2 with specific details",
-    "Strength 3 with specific details"
+    "Strength 1 with specific example from resume",
+    "Strength 2 with specific example from resume",
+    "Strength 3 with specific example from resume"
   ],
   "improvements": [
-    "Improvement 1 with actionable advice",
-    "Improvement 2 with actionable advice",
-    "Improvement 3 with actionable advice"
+    "Specific improvement suggestion 1",
+    "Specific improvement suggestion 2",
+    "Specific improvement suggestion 3"
   ],
   "suggestions": [
-    "Add quantifiable achievements (e.g., 'Improved performance by 40%')",
-    "Include more industry-specific keywords",
-    "Restructure experience section for better readability"
+    "Actionable suggestion 1",
+    "Actionable suggestion 2",
+    "Actionable suggestion 3"
   ],
-  "keywords_missing": ["keyword1", "keyword2", "keyword3"],
-  "format_issues": ["issue1", "issue2"]
+  "missingKeywords": ["keyword1", "keyword2", "keyword3"],
+  "formatIssues": ["Issue 1", "Issue 2"]
 }
 
-Scoring guidelines:
-- Score 0-100 based on overall resume quality
-- ATS Score 0-100 based on keyword optimization and formatting
-- Be specific and actionable in all feedback
-- Focus on tech industry standards`;
+Focus on:
+- Technical skills relevance
+- Project descriptions quality
+- ATS compatibility
+- Impact quantification
+- Keyword optimization for tech roles`;
 
-    const response = await fetch("https://api.bytez.com/models/v2/openai/v1/chat/completions", {
+    const response = await fetch("https://api.sambanova.ai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${BYTEZ_API_KEY}`,
+        "Authorization": `Bearer ${SAMBANOVA_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-4",
+        model: "DeepSeek-V3-0324",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        max_tokens: 1500,
         temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Bytez API error:", response.status, errorText);
+      console.error("SambaNova API error:", response.status, errorText);
       throw new Error(`AI API error: ${response.status}`);
     }
 

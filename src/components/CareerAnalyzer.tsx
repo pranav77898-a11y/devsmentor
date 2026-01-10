@@ -19,14 +19,19 @@ const careerPaths = [
 interface AnalysisResult {
   career: string;
   summary: string;
-  confidence_score: number;
-  salary_range: string;
+  confidenceScore: number;
+  salaryRange: {
+    entry: string;
+    mid: string;
+    senior: string;
+  };
   risk: string;
   alternatives: string[];
-  trending: boolean;
-  skills_required?: string[];
-  growth_outlook?: string;
-  market_demand?: string;
+  requiredSkills?: string[];
+  growthOutlook?: string;
+  topCompanies?: string[];
+  demandTrend?: string;
+  learningPath?: string;
 }
 
 const CareerAnalyzer = () => {
@@ -44,7 +49,7 @@ const CareerAnalyzer = () => {
       const careerName = careerPaths.find(c => c.id === selectedCareer)?.name || selectedCareer;
       
       const { data, error } = await supabase.functions.invoke('career-analysis', {
-        body: { career: careerName }
+        body: { careerPath: careerName }
       });
 
       if (error) throw error;
@@ -132,7 +137,7 @@ const CareerAnalyzer = () => {
                 <div>
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-2xl font-bold">{result.career}</h3>
-                    {result.trending && (
+                    {result.demandTrend === "Increasing" && (
                       <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-medium border border-green-500/30 flex items-center gap-1">
                         <TrendingUp className="w-3 h-3" />
                         Trending
@@ -142,7 +147,7 @@ const CareerAnalyzer = () => {
                   <p className="text-muted-foreground max-w-2xl">{result.summary}</p>
                 </div>
                 <div className="text-right">
-                  <div className="text-4xl font-bold gradient-text">{result.confidence_score}%</div>
+                  <div className="text-4xl font-bold gradient-text">{result.confidenceScore}%</div>
                   <div className="text-sm text-muted-foreground">Confidence Score</div>
                 </div>
               </div>
@@ -153,7 +158,11 @@ const CareerAnalyzer = () => {
                     <DollarSign className="w-4 h-4" />
                     <span className="text-sm">Salary Range</span>
                   </div>
-                  <div className="text-xl font-semibold text-primary">{result.salary_range}</div>
+                  <div className="text-sm space-y-1">
+                    <div><span className="text-muted-foreground">Entry:</span> <span className="text-primary font-medium">{result.salaryRange?.entry}</span></div>
+                    <div><span className="text-muted-foreground">Mid:</span> <span className="text-primary font-medium">{result.salaryRange?.mid}</span></div>
+                    <div><span className="text-muted-foreground">Senior:</span> <span className="text-primary font-medium">{result.salaryRange?.senior}</span></div>
+                  </div>
                 </div>
                 <div className="glass-card p-4">
                   <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -179,11 +188,11 @@ const CareerAnalyzer = () => {
                 </div>
               </div>
 
-              {result.skills_required && result.skills_required.length > 0 && (
+              {result.requiredSkills && result.requiredSkills.length > 0 && (
                 <div className="mb-6">
                   <h4 className="text-sm font-medium text-muted-foreground mb-2">Required Skills</h4>
                   <div className="flex flex-wrap gap-2">
-                    {result.skills_required.map((skill, i) => (
+                    {result.requiredSkills.map((skill, i) => (
                       <span key={i} className="text-xs px-3 py-1 rounded-full bg-primary/20 text-primary border border-primary/30">
                         {skill}
                       </span>
