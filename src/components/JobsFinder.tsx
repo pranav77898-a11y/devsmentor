@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Search, MapPin, Building2, Clock, ExternalLink, Loader2, Linkedin } from "lucide-react";
+import { Briefcase, Search, MapPin, Building2, Clock, ExternalLink, Loader2, Linkedin, Crown, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
+import UpgradePrompt from "@/components/UpgradePrompt";
 
 interface Job {
   title: string;
@@ -23,10 +25,29 @@ const JobsFinder = () => {
   const [jobType, setJobType] = useState<"all" | "jobs" | "internships">("all");
   const [isSearching, setIsSearching] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [dailySearches, setDailySearches] = useState(0);
+  const { isPro, recordUsage, fetchUsageCount } = useSubscription();
+
+  const FREE_SEARCH_LIMIT = 5;
+
+  useEffect(() => {
+    const loadUsage = async () => {
+      const count = await fetchUsageCount('job_search');
+      setDailySearches(count);
+    };
+    loadUsage();
+  }, [fetchUsageCount]);
 
   const searchJobs = async () => {
     if (!searchQuery.trim()) {
       toast.error("Please enter a search query");
+      return;
+    }
+
+    // Check rate limit for free users
+    if (!isPro && dailySearches >= FREE_SEARCH_LIMIT) {
+      setShowUpgrade(true);
       return;
     }
     
@@ -38,6 +59,12 @@ const JobsFinder = () => {
       });
 
       if (error) throw error;
+      
+      // Record usage for free users
+      if (!isPro) {
+        await recordUsage('job_search');
+        setDailySearches(prev => prev + 1);
+      }
       
       setJobs(data.jobs || []);
       toast.success(`Found ${data.jobs?.length || 0} opportunities!`);
@@ -70,6 +97,14 @@ const JobsFinder = () => {
 
   return (
     <section id="jobs" className="py-24 relative bg-muted/20">
+      {showUpgrade && (
+        <UpgradePrompt 
+          feature="Advanced Job Finder" 
+          message="You've reached the daily search limit. Upgrade to Pro for unlimited job searches with advanced filters!"
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
+      
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
@@ -80,6 +115,21 @@ const JobsFinder = () => {
           <p className="section-subtitle">
             AI scans the web to find the latest jobs and internships matching your skills and interests.
           </p>
+          
+          {/* Pro/Free indicator */}
+          <div className="mt-4 flex justify-center">
+            {isPro ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30 text-cyan-400">
+                <Crown className="w-3 h-3" />
+                <span>Unlimited Job Searches</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/50 border border-border text-muted-foreground">
+                <Lock className="w-3 h-3" />
+                <span>{FREE_SEARCH_LIMIT - dailySearches}/{FREE_SEARCH_LIMIT} searches remaining today</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Search Section */}

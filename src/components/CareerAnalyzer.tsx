@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Brain, Sparkles, TrendingUp, AlertTriangle, DollarSign, Target, Loader2 } from "lucide-react";
+import { Brain, Sparkles, TrendingUp, AlertTriangle, DollarSign, Target, Loader2, Crown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useSubscription } from "@/hooks/useSubscription";
+import UpgradePrompt from "@/components/UpgradePrompt";
+import UsageBadge from "@/components/UsageBadge";
 
 const careerPaths = [
   { id: "aiml", name: "AI/ML Engineering", icon: "🤖" },
@@ -38,10 +41,27 @@ const CareerAnalyzer = () => {
   const [selectedCareer, setSelectedCareer] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [dailyUsage, setDailyUsage] = useState(0);
   const navigate = useNavigate();
+  const { isPro, limits, recordUsage, fetchUsageCount } = useSubscription();
+
+  useEffect(() => {
+    const loadUsage = async () => {
+      const count = await fetchUsageCount('career_analysis');
+      setDailyUsage(count);
+    };
+    loadUsage();
+  }, [fetchUsageCount]);
 
   const handleAnalyze = async () => {
     if (!selectedCareer) return;
+    
+    // Check rate limit for free users
+    if (!isPro && dailyUsage >= limits.careerAnalysis) {
+      setShowUpgrade(true);
+      return;
+    }
     
     setIsAnalyzing(true);
     
@@ -53,6 +73,12 @@ const CareerAnalyzer = () => {
       });
 
       if (error) throw error;
+      
+      // Record usage for free users
+      if (!isPro) {
+        await recordUsage('career_analysis');
+        setDailyUsage(prev => prev + 1);
+      }
       
       setResult(data);
       toast.success("Career analysis complete!");
@@ -75,6 +101,14 @@ const CareerAnalyzer = () => {
 
   return (
     <section id="career" className="py-24 relative">
+      {showUpgrade && (
+        <UpgradePrompt 
+          feature="Career Analysis" 
+          message="You've used all 3 free career analyses today. Upgrade to Pro for unlimited access!"
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
+      
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
@@ -85,6 +119,26 @@ const CareerAnalyzer = () => {
           <p className="section-subtitle">
             Select a career path and let AI analyze market trends, salary ranges, and give you personalized recommendations.
           </p>
+          
+          {/* Usage Badge for Free Users */}
+          {!isPro && (
+            <div className="mt-4 flex justify-center">
+              <UsageBadge 
+                used={dailyUsage} 
+                limit={limits.careerAnalysis} 
+                feature="analyses" 
+              />
+            </div>
+          )}
+          
+          {isPro && (
+            <div className="mt-4 flex justify-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30 text-cyan-400">
+                <Crown className="w-3 h-3" />
+                <span>Unlimited Analyses</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="max-w-5xl mx-auto">

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Map, Sparkles, Download, Loader2, CheckCircle, Circle, ExternalLink } from "lucide-react";
+import { Map, Sparkles, Download, Loader2, CheckCircle, Circle, ExternalLink, Crown, Lock, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
+import UpgradePrompt from "@/components/UpgradePrompt";
 
 interface RoadmapNode {
   id: string;
@@ -26,6 +28,8 @@ const RoadmapBuilder = () => {
   const [roadmap, setRoadmap] = useState<{ nodes: RoadmapNode[]; edges: RoadmapEdge[] } | null>(null);
   const [completedNodes, setCompletedNodes] = useState<Set<string>>(new Set());
   const [selectedNode, setSelectedNode] = useState<RoadmapNode | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const { isPro } = useSubscription();
 
   const generateRoadmap = async () => {
     if (!subject.trim()) return;
@@ -51,6 +55,11 @@ const RoadmapBuilder = () => {
   };
 
   const toggleNodeComplete = (nodeId: string) => {
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
+    
     setCompletedNodes(prev => {
       const newSet = new Set(prev);
       if (newSet.has(nodeId)) {
@@ -64,12 +73,12 @@ const RoadmapBuilder = () => {
 
   const getLevelColor = (level: number) => {
     const colors = [
-      "hsl(187, 94%, 50%)",  // cyan
-      "hsl(168, 75%, 45%)",  // teal
-      "hsl(142, 70%, 45%)",  // emerald
-      "hsl(84, 70%, 45%)",   // lime
-      "hsl(45, 90%, 50%)",   // amber
-      "hsl(25, 90%, 55%)",   // orange
+      "hsl(187, 94%, 50%)",
+      "hsl(168, 75%, 45%)",
+      "hsl(142, 70%, 45%)",
+      "hsl(84, 70%, 45%)",
+      "hsl(45, 90%, 50%)",
+      "hsl(25, 90%, 55%)",
     ];
     return colors[Math.min(level, colors.length - 1)];
   };
@@ -80,6 +89,11 @@ const RoadmapBuilder = () => {
   };
 
   const handleExport = () => {
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
+    
     if (!roadmap) return;
     
     const dataStr = JSON.stringify(roadmap, null, 2);
@@ -96,6 +110,14 @@ const RoadmapBuilder = () => {
 
   return (
     <section id="roadmap" className="py-24 relative">
+      {showUpgrade && (
+        <UpgradePrompt 
+          feature="Editable Roadmaps" 
+          message="Upgrade to Pro to track progress, edit roadmaps, and export to PDF/PNG!"
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
+      
       <div className="absolute inset-0 bg-[linear-gradient(rgba(34,211,238,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.02)_1px,transparent_1px)] bg-[size:30px_30px]" />
       
       <div className="container mx-auto px-4 relative z-10">
@@ -108,6 +130,21 @@ const RoadmapBuilder = () => {
           <p className="section-subtitle">
             Enter any tech topic and our AI will create a visual, node-based learning path with resources.
           </p>
+          
+          {/* Pro/Free indicator */}
+          <div className="mt-4 flex justify-center gap-2">
+            {isPro ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30 text-cyan-400">
+                <Crown className="w-3 h-3" />
+                <span>Full Access • Edit & Export</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/50 border border-border text-muted-foreground">
+                <Lock className="w-3 h-3" />
+                <span>Basic Roadmaps • Upgrade for Edit & Export</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Input Section */}
@@ -153,6 +190,7 @@ const RoadmapBuilder = () => {
                 <div className="flex items-center gap-4">
                   <div className="text-sm text-muted-foreground">
                     Progress: <span className="text-primary font-semibold">{getProgress()}%</span>
+                    {!isPro && <span className="text-xs ml-2">(Pro feature)</span>}
                   </div>
                   <div className="w-48 h-2 bg-muted rounded-full overflow-hidden">
                     <div 
@@ -162,10 +200,26 @@ const RoadmapBuilder = () => {
                   </div>
                 </div>
               </div>
-              <Button variant="glass" size="sm" className="gap-2" onClick={handleExport}>
-                <Download className="w-4 h-4" />
-                Export
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant={isPro ? "glass" : "pro"} 
+                  size="sm" 
+                  className="gap-2" 
+                  onClick={handleExport}
+                >
+                  {isPro ? (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Export
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-4 h-4" />
+                      Export (Pro)
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
 
             {/* SVG Visualization */}
@@ -314,11 +368,20 @@ const RoadmapBuilder = () => {
                     )}
                   </div>
                   <Button
-                    variant={completedNodes.has(selectedNode.id) ? "glass" : "hero"}
+                    variant={completedNodes.has(selectedNode.id) ? "glass" : isPro ? "hero" : "pro"}
                     size="sm"
                     onClick={() => toggleNodeComplete(selectedNode.id)}
                   >
-                    {completedNodes.has(selectedNode.id) ? "Mark Incomplete" : "Mark Complete"}
+                    {completedNodes.has(selectedNode.id) ? (
+                      "Mark Incomplete"
+                    ) : isPro ? (
+                      "Mark Complete"
+                    ) : (
+                      <>
+                        <Lock className="w-3 h-3" />
+                        Mark Complete (Pro)
+                      </>
+                    )}
                   </Button>
                 </div>
                 
@@ -364,7 +427,7 @@ const RoadmapBuilder = () => {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-400" />
-                <span>Completed</span>
+                <span>Completed {!isPro && "(Pro)"}</span>
               </div>
             </div>
           </div>

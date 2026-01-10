@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { GitBranch, Sparkles, Download, Loader2, ZoomIn, ZoomOut, Move } from "lucide-react";
+import { GitBranch, Sparkles, Download, Loader2, ZoomIn, ZoomOut, Crown, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
+import UpgradePrompt from "@/components/UpgradePrompt";
 
 interface MindMapNode {
   id: string;
@@ -25,10 +27,18 @@ const MindMapBuilder = () => {
   const [mindMap, setMindMap] = useState<MindMapData | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
+  const { isPro } = useSubscription();
 
   const generateMindMap = async () => {
     if (!topic.trim()) return;
+    
+    // Check if user is Pro for full interactive mind maps
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
     
     setIsGenerating(true);
     
@@ -52,6 +62,11 @@ const MindMapBuilder = () => {
   };
 
   const handleExport = () => {
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
+    
     if (!svgRef.current) return;
     
     const svgData = new XMLSerializer().serializeToString(svgRef.current);
@@ -80,6 +95,14 @@ const MindMapBuilder = () => {
 
   return (
     <section id="mindmap" className="py-24 relative bg-muted/20">
+      {showUpgrade && (
+        <UpgradePrompt 
+          feature="Interactive Mind Maps" 
+          message="Upgrade to Pro to generate and export interactive node-based mind maps!"
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
+      
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
@@ -90,6 +113,21 @@ const MindMapBuilder = () => {
           <p className="section-subtitle">
             Generate interactive node-based mind maps to understand and organize complex topics visually.
           </p>
+          
+          {/* Pro/Free indicator */}
+          <div className="mt-4 flex justify-center">
+            {isPro ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30 text-cyan-400">
+                <Crown className="w-3 h-3" />
+                <span>Full Interactive Mind Maps</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/50 border border-border text-muted-foreground">
+                <Lock className="w-3 h-3" />
+                <span>Pro Feature • Upgrade to Access</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Input Section */}
@@ -104,7 +142,7 @@ const MindMapBuilder = () => {
               onKeyDown={(e) => e.key === 'Enter' && generateMindMap()}
             />
             <Button
-              variant="hero"
+              variant={isPro ? "hero" : "pro"}
               onClick={generateMindMap}
               disabled={!topic.trim() || isGenerating}
             >
@@ -113,10 +151,15 @@ const MindMapBuilder = () => {
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Generating...
                 </>
-              ) : (
+              ) : isPro ? (
                 <>
                   <Sparkles className="w-4 h-4" />
                   Generate
+                </>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4" />
+                  Pro Feature
                 </>
               )}
             </Button>
@@ -163,7 +206,6 @@ const MindMapBuilder = () => {
                     const targetNode = mindMap.nodes.find(n => n.id === targetId);
                     if (!targetNode) return null;
                     
-                    // Draw curved line from center to node
                     const cx = 600;
                     const cy = 300;
                     const midX = (cx + node.x) / 2;
@@ -229,9 +271,8 @@ const MindMapBuilder = () => {
                 </g>
 
                 {/* Category Nodes */}
-                {mindMap.nodes.map((node, index) => (
+                {mindMap.nodes.map((node) => (
                   <g key={node.id} className="cursor-pointer group">
-                    {/* Node background */}
                     <rect
                       x={node.x - 70}
                       y={node.y - 25}
@@ -247,7 +288,6 @@ const MindMapBuilder = () => {
                       }}
                     />
                     
-                    {/* Category label */}
                     <text
                       x={node.x}
                       y={node.y - 5}
@@ -259,7 +299,6 @@ const MindMapBuilder = () => {
                       {node.category}
                     </text>
                     
-                    {/* Node label */}
                     <text
                       x={node.x}
                       y={node.y + 12}
@@ -305,9 +344,13 @@ const MindMapBuilder = () => {
         {!mindMap && !isGenerating && (
           <div className="glass-card p-16 text-center max-w-2xl mx-auto">
             <GitBranch className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No Mind Map Generated</h3>
+            <h3 className="text-xl font-semibold mb-2 text-muted-foreground">
+              {isPro ? "No Mind Map Generated" : "Pro Feature"}
+            </h3>
             <p className="text-muted-foreground">
-              Enter a topic above to generate an interactive node-based mind map.
+              {isPro 
+                ? "Enter a topic above to generate an interactive node-based mind map."
+                : "Upgrade to Pro to generate interactive mind maps with export functionality."}
             </p>
           </div>
         )}

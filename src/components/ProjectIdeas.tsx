@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Rocket, ExternalLink, ChevronDown, ChevronUp, Code, Book, Github, Loader2, Sparkles } from "lucide-react";
+import { Rocket, ExternalLink, ChevronDown, ChevronUp, Code, Book, Github, Loader2, Sparkles, Crown, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
+import UpgradePrompt from "@/components/UpgradePrompt";
 
 interface ProjectDetails {
   name: string;
@@ -20,6 +22,8 @@ interface ProjectDetails {
 
 const categories = ["All", "Web Development", "AI/ML", "Mobile", "DevOps", "Cybersecurity", "Data Science"];
 
+const FREE_PROJECT_LIMIT = 10;
+
 const ProjectIdeas = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showAll, setShowAll] = useState(false);
@@ -27,10 +31,27 @@ const ProjectIdeas = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedProjects, setGeneratedProjects] = useState<ProjectDetails[]>([]);
   const [expandedProject, setExpandedProject] = useState<number | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [generationCount, setGenerationCount] = useState(0);
+  const { isPro, recordUsage, fetchUsageCount } = useSubscription();
+
+  useEffect(() => {
+    const loadUsage = async () => {
+      const count = await fetchUsageCount('project_generation');
+      setGenerationCount(count);
+    };
+    loadUsage();
+  }, [fetchUsageCount]);
 
   const generateProjects = async () => {
     if (!searchQuery.trim()) {
       toast.error("Please enter a topic to generate projects");
+      return;
+    }
+
+    // Check rate limit for free users
+    if (!isPro && generationCount >= 3) {
+      setShowUpgrade(true);
       return;
     }
     
@@ -43,8 +64,22 @@ const ProjectIdeas = () => {
 
       if (error) throw error;
       
-      setGeneratedProjects(data.projects || []);
-      toast.success(`Generated ${data.projects?.length || 0} project ideas!`);
+      // Record usage for free users
+      if (!isPro) {
+        await recordUsage('project_generation');
+        setGenerationCount(prev => prev + 1);
+      }
+      
+      // For free users, limit to 10 projects
+      const projects = data.projects || [];
+      const limitedProjects = isPro ? projects : projects.slice(0, FREE_PROJECT_LIMIT);
+      
+      setGeneratedProjects(limitedProjects);
+      toast.success(`Generated ${limitedProjects.length} project ideas!`);
+      
+      if (!isPro && projects.length > FREE_PROJECT_LIMIT) {
+        toast.info(`Upgrade to Pro to see all ${projects.length}+ project ideas!`);
+      }
     } catch (error) {
       console.error("Project generation error:", error);
       toast.error("Failed to generate projects. Please try again.");
@@ -66,6 +101,14 @@ const ProjectIdeas = () => {
 
   return (
     <section id="projects" className="py-24 relative">
+      {showUpgrade && (
+        <UpgradePrompt 
+          feature="100+ Project Ideas" 
+          message="You've reached the daily generation limit. Upgrade to Pro for unlimited project generations and 100+ detailed ideas!"
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
+      
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
@@ -76,6 +119,21 @@ const ProjectIdeas = () => {
           <p className="section-subtitle">
             Generate detailed project ideas with tech stack, APIs, and step-by-step guidance.
           </p>
+          
+          {/* Pro/Free indicator */}
+          <div className="mt-4 flex justify-center">
+            {isPro ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30 text-cyan-400">
+                <Crown className="w-3 h-3" />
+                <span>100+ Project Ideas • Unlimited Generations</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/50 border border-border text-muted-foreground">
+                <Lock className="w-3 h-3" />
+                <span>{FREE_PROJECT_LIMIT} Projects • {3 - generationCount} generations remaining today</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Search and Generate */}
