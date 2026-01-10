@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Search, MapPin, Building2, Clock, ExternalLink, Loader2 } from "lucide-react";
+import { Briefcase, Search, MapPin, Building2, Clock, ExternalLink, Loader2, Linkedin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -12,7 +12,7 @@ interface Job {
   salary: string;
   posted: string;
   skills: string[];
-  url: string;
+  linkedInUrl: string;
   isInternship: boolean;
   experience?: string;
   description?: string;
@@ -25,7 +25,10 @@ const JobsFinder = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
 
   const searchJobs = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) {
+      toast.error("Please enter a search query");
+      return;
+    }
     
     setIsSearching(true);
     
@@ -52,6 +55,18 @@ const JobsFinder = () => {
     if (jobType === "internships") return job.isInternship;
     return true;
   });
+
+  const handleApply = (job: Job) => {
+    if (job.linkedInUrl) {
+      window.open(job.linkedInUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      // Generate a LinkedIn search URL as fallback
+      const keywords = encodeURIComponent(`${job.title} ${job.company}`);
+      const location = encodeURIComponent(job.location || 'India');
+      const linkedInUrl = `https://www.linkedin.com/jobs/search/?keywords=${keywords}&location=${location}`;
+      window.open(linkedInUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
     <section id="jobs" className="py-24 relative bg-muted/20">
@@ -125,8 +140,19 @@ const JobsFinder = () => {
           </div>
         </div>
 
+        {/* Loading State */}
+        {isSearching && (
+          <div className="glass-card p-16 text-center max-w-2xl mx-auto">
+            <Loader2 className="w-16 h-16 text-primary mx-auto mb-4 animate-spin" />
+            <h3 className="text-xl font-semibold mb-2">Searching for opportunities...</h3>
+            <p className="text-muted-foreground">
+              AI is scanning for the best matches for "{searchQuery}"
+            </p>
+          </div>
+        )}
+
         {/* Job Results */}
-        {filteredJobs.length > 0 && (
+        {!isSearching && filteredJobs.length > 0 && (
           <div className="max-w-4xl mx-auto space-y-4">
             {filteredJobs.map((job, index) => (
               <div 
@@ -178,8 +204,14 @@ const JobsFinder = () => {
                     {job.experience && (
                       <span className="text-xs text-muted-foreground">{job.experience}</span>
                     )}
-                    <Button variant="glass" size="sm" className="gap-2">
-                      Apply Now
+                    <Button 
+                      variant="hero" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => handleApply(job)}
+                    >
+                      <Linkedin className="w-4 h-4" />
+                      Apply on LinkedIn
                       <ExternalLink className="w-3 h-3" />
                     </Button>
                   </div>
@@ -190,7 +222,7 @@ const JobsFinder = () => {
         )}
 
         {/* Empty State */}
-        {jobs.length === 0 && !isSearching && (
+        {!isSearching && jobs.length === 0 && (
           <div className="glass-card p-16 text-center max-w-2xl mx-auto">
             <Briefcase className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-semibold mb-2 text-muted-foreground">Search for Opportunities</h3>
