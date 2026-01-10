@@ -11,60 +11,57 @@ serve(async (req) => {
   }
 
   try {
-    const { career } = await req.json();
-    const BYTEZ_API_KEY = Deno.env.get("BYTEZ_API_KEY");
+    const { careerPath } = await req.json();
+    const SAMBANOVA_API_KEY = Deno.env.get("SAMBANOVA_API_KEY");
     
-    if (!BYTEZ_API_KEY) {
-      throw new Error("BYTEZ_API_KEY is not configured");
+    if (!SAMBANOVA_API_KEY) {
+      throw new Error("SAMBANOVA_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert career advisor specializing in the Indian tech market. Analyze career paths with focus on:
-- Current market trends and demand in India
-- Salary ranges in LPA (Lakhs Per Annum)
-- Growth potential and job security
-- Required skills and learning path
-- Risk assessment
+    const systemPrompt = `You are a career advisor specializing in the Indian tech market. Provide detailed, actionable career analysis with current market insights. Focus on Indian tech industry specifics including salary ranges in INR, major tech hubs, and top companies.`;
 
-Always provide practical, actionable advice based on real market conditions.`;
+    const userPrompt = `Analyze the career path: ${careerPath}
 
-    const userPrompt = `Analyze the career path: ${career}
-
-Provide a detailed analysis in the following JSON format:
+Provide a comprehensive analysis in JSON format:
 {
-  "career": "${career}",
-  "summary": "A comprehensive 2-3 sentence summary of this career path",
-  "confidence_score": 85,
-  "salary_range": "₹X - ₹Y LPA",
+  "career": "${careerPath}",
+  "summary": "2-3 sentence overview of this career",
+  "confidenceScore": 85,
+  "salaryRange": {
+    "entry": "₹X-Y LPA",
+    "mid": "₹X-Y LPA", 
+    "senior": "₹X-Y LPA"
+  },
   "risk": "Low/Medium/High",
-  "trending": true/false,
-  "alternatives": ["Alternative 1", "Alternative 2", "Alternative 3"],
-  "skills_required": ["Skill 1", "Skill 2", "Skill 3"],
-  "growth_outlook": "Description of growth potential",
-  "market_demand": "High/Medium/Low"
+  "alternatives": ["Alternative Career 1", "Alternative Career 2", "Alternative Career 3"],
+  "requiredSkills": ["Skill 1", "Skill 2", "Skill 3", "Skill 4", "Skill 5"],
+  "growthOutlook": "Description of 5-year growth potential",
+  "topCompanies": ["Company 1", "Company 2", "Company 3"],
+  "demandTrend": "Increasing/Stable/Decreasing",
+  "learningPath": "Recommended learning approach"
 }
 
-Base your analysis on current Indian tech market trends and provide realistic salary ranges.`;
+Focus on accurate data for the Indian tech market in 2024-2025.`;
 
-    const response = await fetch("https://api.bytez.com/models/v2/openai/v1/chat/completions", {
+    const response = await fetch("https://api.sambanova.ai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${BYTEZ_API_KEY}`,
+        "Authorization": `Bearer ${SAMBANOVA_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-4",
+        model: "DeepSeek-V3-0324",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        max_tokens: 1000,
         temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Bytez API error:", response.status, errorText);
+      console.error("SambaNova API error:", response.status, errorText);
       throw new Error(`AI API error: ${response.status}`);
     }
 
