@@ -12,10 +12,10 @@ serve(async (req) => {
 
   try {
     const { query } = await req.json();
-    const SAMBANOVA_API_KEY = Deno.env.get("SAMBANOVA_API_KEY");
+    const AIML_API_KEY = Deno.env.get("AIML_API_KEY");
     
-    if (!SAMBANOVA_API_KEY) {
-      throw new Error("SAMBANOVA_API_KEY is not configured");
+    if (!AIML_API_KEY) {
+      throw new Error("AIML_API_KEY is not configured");
     }
 
     const systemPrompt = `You are a job search assistant specializing in tech jobs in India. Generate realistic job listings based on current market trends. Include a mix of full-time positions and internships from real companies. For each job, generate a valid LinkedIn job search URL.`;
@@ -51,14 +51,14 @@ Requirements:
 - IMPORTANT: For linkedInUrl, generate a valid LinkedIn job search URL like: https://www.linkedin.com/jobs/search/?keywords=ENCODED_JOB_TITLE%20ENCODED_COMPANY&location=ENCODED_LOCATION
 - URL encode the keywords and location properly (spaces as %20)`;
 
-    const response = await fetch("https://api.sambanova.ai/v1/chat/completions", {
+    const response = await fetch("https://api.aimlapi.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${SAMBANOVA_API_KEY}`,
+        "Authorization": `Bearer ${AIML_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "DeepSeek-V3-0324",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -69,7 +69,7 @@ Requirements:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("SambaNova API error:", response.status, errorText);
+      console.error("AIML API error:", response.status, errorText);
       throw new Error(`AI API error: ${response.status}`);
     }
 

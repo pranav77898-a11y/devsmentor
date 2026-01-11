@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Search, Sparkles, ExternalLink, Loader2, BookOpen, Video, FileText, Code } from "lucide-react";
+import { Search, Sparkles, ExternalLink, Loader2, BookOpen, Video, FileText, Code, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
+import UpgradePrompt from "@/components/UpgradePrompt";
 
 interface SearchResult {
   title: string;
@@ -16,10 +18,18 @@ const AISearchEngine = () => {
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
+  const { isPro, limits, recordUsage } = useSubscription();
+
+  const isProFeature = !isPro && !limits.canUseAISearch;
 
   const searchWithAI = async () => {
     if (!query.trim()) {
       toast.error("Please enter a search query");
+      return;
+    }
+
+    if (isProFeature) {
+      toast.error("AI Search is a Pro feature. Upgrade to access!");
       return;
     }
     
@@ -31,6 +41,8 @@ const AISearchEngine = () => {
       });
 
       if (error) throw error;
+      
+      await recordUsage("ai_search");
       
       setResults(data.results || []);
       toast.success(`Found ${data.results?.length || 0} results!`);
@@ -69,6 +81,9 @@ const AISearchEngine = () => {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
             <Sparkles className="w-4 h-4" />
             <span>AI Search Engine</span>
+            {isProFeature && (
+              <span className="ml-2 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs">Pro</span>
+            )}
           </div>
           <h2 className="section-title">Search Tech Resources with AI</h2>
           <p className="section-subtitle">
@@ -76,7 +91,15 @@ const AISearchEngine = () => {
           </p>
         </div>
 
-        {/* Search Section */}
+        {isProFeature && (
+          <div className="max-w-2xl mx-auto mb-8">
+            <UpgradePrompt 
+              feature="AI Search"
+              message="AI Search is a Pro-only feature. Upgrade to search with AI!"
+            />
+          </div>
+        )}
+
         <div className="max-w-3xl mx-auto mb-12">
           <div className="glass-card p-6">
             <div className="flex flex-col md:flex-row gap-4">
@@ -88,19 +111,25 @@ const AISearchEngine = () => {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="input-dark pl-12 w-full"
-                  onKeyDown={(e) => e.key === 'Enter' && searchWithAI()}
+                  onKeyDown={(e) => e.key === 'Enter' && !isProFeature && searchWithAI()}
+                  disabled={isProFeature}
                 />
               </div>
               <Button
                 variant="hero"
                 onClick={searchWithAI}
-                disabled={!query.trim() || isSearching}
+                disabled={!query.trim() || isSearching || isProFeature}
                 className="md:w-auto w-full"
               >
                 {isSearching ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Searching...
+                  </>
+                ) : isProFeature ? (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Pro Only
                   </>
                 ) : (
                   <>
@@ -113,26 +142,18 @@ const AISearchEngine = () => {
           </div>
         </div>
 
-        {/* Loading State */}
         {isSearching && (
           <div className="glass-card p-16 text-center max-w-2xl mx-auto">
             <Loader2 className="w-16 h-16 text-primary mx-auto mb-4 animate-spin" />
             <h3 className="text-xl font-semibold mb-2">AI is searching...</h3>
-            <p className="text-muted-foreground">
-              Finding the best resources for "{query}"
-            </p>
+            <p className="text-muted-foreground">Finding the best resources for "{query}"</p>
           </div>
         )}
 
-        {/* Results */}
         {!isSearching && results.length > 0 && (
           <div className="max-w-4xl mx-auto space-y-4">
             {results.map((result, index) => (
-              <div 
-                key={index} 
-                className="glass-card-hover p-6 animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
+              <div key={index} className="glass-card-hover p-6 animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -145,12 +166,7 @@ const AISearchEngine = () => {
                     <p className="text-sm text-muted-foreground mb-3">{result.description}</p>
                     <span className="text-xs text-muted-foreground">{result.source}</span>
                   </div>
-                  <Button 
-                    variant="hero" 
-                    size="sm" 
-                    className="gap-2"
-                    onClick={() => window.open(result.url, '_blank', 'noopener,noreferrer')}
-                  >
+                  <Button variant="hero" size="sm" className="gap-2" onClick={() => window.open(result.url, '_blank', 'noopener,noreferrer')}>
                     Visit
                     <ExternalLink className="w-3 h-3" />
                   </Button>
@@ -160,14 +176,11 @@ const AISearchEngine = () => {
           </div>
         )}
 
-        {/* Empty State */}
-        {!isSearching && results.length === 0 && (
+        {!isSearching && results.length === 0 && !isProFeature && (
           <div className="glass-card p-16 text-center max-w-2xl mx-auto">
             <Search className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-semibold mb-2 text-muted-foreground">Search for Resources</h3>
-            <p className="text-muted-foreground">
-              Enter a topic to find documentation, tutorials, and learning resources.
-            </p>
+            <p className="text-muted-foreground">Enter a topic to find documentation, tutorials, and learning resources.</p>
           </div>
         )}
       </div>
