@@ -12,10 +12,10 @@ serve(async (req) => {
 
   try {
     const { resumeText } = await req.json();
-    const SAMBANOVA_API_KEY = Deno.env.get("SAMBANOVA_API_KEY");
+    const AIML_API_KEY = Deno.env.get("AIML_API_KEY");
     
-    if (!SAMBANOVA_API_KEY) {
-      throw new Error("SAMBANOVA_API_KEY is not configured");
+    if (!AIML_API_KEY) {
+      throw new Error("AIML_API_KEY is not configured");
     }
 
     const systemPrompt = `You are an expert resume reviewer and ATS (Applicant Tracking System) specialist for tech roles. Analyze resumes and provide actionable feedback to improve chances of getting interviews at top tech companies.`;
@@ -54,14 +54,14 @@ Focus on:
 - Impact quantification
 - Keyword optimization for tech roles`;
 
-    const response = await fetch("https://api.sambanova.ai/v1/chat/completions", {
+    const response = await fetch("https://api.aimlapi.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${SAMBANOVA_API_KEY}`,
+        "Authorization": `Bearer ${AIML_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "DeepSeek-V3-0324",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -72,7 +72,7 @@ Focus on:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("SambaNova API error:", response.status, errorText);
+      console.error("AIML API error:", response.status, errorText);
       throw new Error(`AI API error: ${response.status}`);
     }
 

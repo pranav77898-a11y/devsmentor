@@ -1,14 +1,21 @@
 import { Button } from "@/components/ui/button";
 import { Check, X, Zap, Crown, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const PricingSection = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
   const freeFeatures = [
     { name: "Career Analysis (3/day)", included: true },
     { name: "Basic Roadmaps", included: true },
     { name: "View Mind Maps", included: true },
     { name: "10 Project Ideas", included: true },
-    { name: "Job Search", included: true },
+    { name: "Job Search (5/day)", included: true },
     { name: "Resume Analysis", included: true },
+    { name: "AI Search (5/day)", included: true },
     { name: "Editable Roadmaps", included: false },
     { name: "Export Roadmaps/Mind Maps", included: false },
     { name: "100+ Detailed Projects", included: false },
@@ -23,12 +30,31 @@ const PricingSection = () => {
     { name: "100+ Project Ideas", included: true },
     { name: "Advanced Job Finder", included: true },
     { name: "AI Resume Enhancer", included: true },
+    { name: "Unlimited AI Search", included: true },
     { name: "Editable Roadmaps", included: true },
     { name: "Export to PNG/PDF", included: true },
     { name: "Step-by-Step Tutorials", included: true },
     { name: "GitHub Templates", included: true },
     { name: "Priority Support", included: true },
   ];
+
+  const handleGetStarted = () => {
+    if (user) {
+      navigate("/career");
+    } else {
+      navigate("/signup");
+    }
+  };
+
+  const handleUpgrade = () => {
+    if (!user) {
+      toast.info("Please sign up first to upgrade to Pro");
+      navigate("/signup");
+      return;
+    }
+    // TODO: Integrate Razorpay payment
+    toast.info("Pro upgrade coming soon! We're integrating Razorpay payment.");
+  };
 
   return (
     <section id="pricing" className="py-24 relative">
@@ -71,8 +97,8 @@ const PricingSection = () => {
               ))}
             </ul>
 
-            <Button variant="glass" className="w-full" size="lg">
-              Get Started Free
+            <Button variant="glass" className="w-full" size="lg" onClick={handleGetStarted}>
+              {user ? "Go to Dashboard" : "Get Started Free"}
             </Button>
           </div>
 
@@ -104,7 +130,7 @@ const PricingSection = () => {
               ))}
             </ul>
 
-            <Button variant="pro" className="w-full" size="lg">
+            <Button variant="pro" className="w-full" size="lg" onClick={handleUpgrade}>
               <Zap className="w-5 h-5" />
               Upgrade to Pro – ₹99
             </Button>
