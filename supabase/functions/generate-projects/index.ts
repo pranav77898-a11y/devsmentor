@@ -12,15 +12,15 @@ serve(async (req) => {
 
   try {
     const { topic, category } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are a senior software engineer who creates detailed project ideas for developers. Generate comprehensive project specifications with tech stacks, APIs, features, and learning resources.`;
+    const prompt = `You are a senior software engineer who creates detailed project ideas for developers. Generate comprehensive project specifications with tech stacks, APIs, features, and learning resources.
 
-    const userPrompt = `Generate 6 detailed project ideas for: ${topic}
+Generate 6 detailed project ideas for: ${topic}
 ${category !== "All" ? `Category focus: ${category}` : "Mix of different categories"}
 
 Return JSON in this exact format:
@@ -63,19 +63,16 @@ Requirements:
 - Learning outcomes should be practical and industry-relevant
 - Estimated time should be realistic for the difficulty level`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: 0.8,
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.8,
+        },
       }),
     });
 
@@ -98,7 +95,11 @@ Requirements:
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!content) {
+      throw new Error("No content in AI response");
+    }
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
