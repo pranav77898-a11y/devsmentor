@@ -5,6 +5,44 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const parseRetryAfterSeconds = (resp: Response): number | null => {
+  const header = resp.headers.get("retry-after") ?? resp.headers.get("Retry-After");
+  if (!header) return null;
+  const seconds = Number(header);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds) : null;
+};
+
+const fetchWithRetry = async (
+  requestFn: () => Promise<Response>,
+  maxRetries = 3
+): Promise<Response> => {
+  let lastResponse: Response | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const resp = await requestFn();
+
+    if (resp.status !== 429) return resp;
+
+    lastResponse = resp;
+    if (attempt === maxRetries) break;
+
+    const retryAfterSeconds = parseRetryAfterSeconds(resp);
+    const baseDelayMs = Math.min(30000, Math.pow(2, attempt) * 1000);
+    const jitterMs = Math.floor(Math.random() * 500);
+    const delayMs = retryAfterSeconds ? retryAfterSeconds * 1000 : baseDelayMs + jitterMs;
+
+    console.warn(
+      `Gemini rate limited (429). Retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries}).`
+    );
+    await sleep(delayMs);
+  }
+
+  return lastResponse ?? (await requestFn());
+};
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -56,25 +94,40 @@ Requirements:
 - Labels should be concise (1-3 words max)
 - Cover: basics, tools, techniques, best practices, and advanced topics`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-        },
-      }),
-    });
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+    const response = await fetchWithRetry(
+      () =>
+        fetch(geminiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.7,
+            },
+          }),
+        }),
+      3
+    );
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        const retryAfterSeconds = parseRetryAfterSeconds(response);
+        return new Response(
+          JSON.stringify({
+            error: retryAfterSeconds
+              ? `Rate limit exceeded. Please wait ${retryAfterSeconds}s and try again.`
+              : "Rate limit exceeded. Please try again later.",
+            retryAfterSeconds,
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
       if (response.status === 402) {
         return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds to continue." }), {
