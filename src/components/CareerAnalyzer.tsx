@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/hooks/useSubscription";
 import UpgradePrompt from "@/components/UpgradePrompt";
+import { supabase } from "@/integrations/supabase/client";
 
 const careerPaths = [
   { id: "aiml", name: "AI/ML Engineering", icon: "🤖" },
@@ -17,11 +18,11 @@ const careerPaths = [
   { id: "game", name: "Game Development", icon: "🎮" },
 ];
 
-// Static career data
-const careerData: Record<string, any> = {
+// Fallback career data
+const fallbackData: Record<string, any> = {
   aiml: {
     career: "AI/ML Engineering",
-    summary: "AI/ML Engineering is one of the fastest-growing fields in tech. Engineers build intelligent systems using machine learning, deep learning, and data science techniques.",
+    summary: "AI/ML Engineering is one of the fastest-growing fields in tech.",
     confidenceScore: 92,
     salaryRange: { entry: "₹8-15 LPA", mid: "₹20-35 LPA", senior: "₹45-80 LPA" },
     risk: "Low",
@@ -31,73 +32,13 @@ const careerData: Record<string, any> = {
   },
   webdev: {
     career: "Full Stack Development",
-    summary: "Full Stack developers build complete web applications, handling both frontend and backend. High demand across startups and enterprises.",
+    summary: "Full Stack developers build complete web applications.",
     confidenceScore: 88,
     salaryRange: { entry: "₹5-10 LPA", mid: "₹15-25 LPA", senior: "₹30-50 LPA" },
     risk: "Low",
     alternatives: ["Frontend Developer", "Backend Developer", "Mobile Developer"],
     requiredSkills: ["JavaScript", "React", "Node.js", "SQL", "Git", "REST APIs"],
     demandTrend: "Increasing",
-  },
-  mobile: {
-    career: "Mobile Development",
-    summary: "Mobile developers create applications for iOS and Android platforms. Growing demand with the mobile-first approach in most companies.",
-    confidenceScore: 85,
-    salaryRange: { entry: "₹6-12 LPA", mid: "₹18-30 LPA", senior: "₹35-55 LPA" },
-    risk: "Low",
-    alternatives: ["Full Stack Developer", "React Native Developer", "Flutter Developer"],
-    requiredSkills: ["Swift/Kotlin", "React Native", "Flutter", "REST APIs", "UI/UX"],
-    demandTrend: "Increasing",
-  },
-  devops: {
-    career: "DevOps/Cloud Engineering",
-    summary: "DevOps engineers bridge development and operations, focusing on automation, CI/CD, and cloud infrastructure management.",
-    confidenceScore: 90,
-    salaryRange: { entry: "₹7-14 LPA", mid: "₹20-35 LPA", senior: "₹40-70 LPA" },
-    risk: "Low",
-    alternatives: ["Site Reliability Engineer", "Cloud Architect", "Platform Engineer"],
-    requiredSkills: ["AWS/Azure/GCP", "Docker", "Kubernetes", "Linux", "Terraform", "CI/CD"],
-    demandTrend: "Increasing",
-  },
-  cybersec: {
-    career: "Cybersecurity",
-    summary: "Cybersecurity professionals protect systems and data from threats. Critical role with increasing importance due to rising cyber attacks.",
-    confidenceScore: 87,
-    salaryRange: { entry: "₹6-12 LPA", mid: "₹18-30 LPA", senior: "₹35-60 LPA" },
-    risk: "Low",
-    alternatives: ["Security Analyst", "Penetration Tester", "Security Architect"],
-    requiredSkills: ["Network Security", "Ethical Hacking", "SIEM", "Cryptography", "Linux"],
-    demandTrend: "Increasing",
-  },
-  data: {
-    career: "Data Science",
-    summary: "Data Scientists analyze complex data to derive insights and build predictive models. High demand in analytics-driven organizations.",
-    confidenceScore: 86,
-    salaryRange: { entry: "₹7-14 LPA", mid: "₹20-35 LPA", senior: "₹40-70 LPA" },
-    risk: "Low",
-    alternatives: ["ML Engineer", "Data Analyst", "Business Intelligence Analyst"],
-    requiredSkills: ["Python", "R", "SQL", "Machine Learning", "Statistics", "Data Visualization"],
-    demandTrend: "Increasing",
-  },
-  blockchain: {
-    career: "Blockchain/Web3 Development",
-    summary: "Blockchain developers build decentralized applications and smart contracts. Emerging field with growing opportunities in DeFi and NFTs.",
-    confidenceScore: 75,
-    salaryRange: { entry: "₹8-15 LPA", mid: "₹25-45 LPA", senior: "₹50-90 LPA" },
-    risk: "Medium",
-    alternatives: ["Smart Contract Developer", "Full Stack Developer", "Crypto Researcher"],
-    requiredSkills: ["Solidity", "Ethereum", "Smart Contracts", "Web3.js", "DeFi Protocols"],
-    demandTrend: "Increasing",
-  },
-  game: {
-    career: "Game Development",
-    summary: "Game developers create interactive games for various platforms. Creative field combining programming with art and design.",
-    confidenceScore: 78,
-    salaryRange: { entry: "₹4-10 LPA", mid: "₹15-28 LPA", senior: "₹30-50 LPA" },
-    risk: "Medium",
-    alternatives: ["Unity Developer", "Unreal Developer", "Graphics Programmer"],
-    requiredSkills: ["Unity/Unreal", "C++/C#", "3D Graphics", "Game Design", "Physics Engines"],
-    demandTrend: "Stable",
   },
 };
 
@@ -114,14 +55,30 @@ const CareerAnalyzer = () => {
     
     setIsAnalyzing(true);
     
-    // Simulate loading
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const careerName = careerPaths.find(c => c.id === selectedCareer)?.name || selectedCareer;
     
-    const data = careerData[selectedCareer];
-    setResult(data);
-    toast.success("Career analysis complete!");
-    
-    setIsAnalyzing(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-career', {
+        body: { career: careerName }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setResult(data);
+      toast.success("Career analysis complete!");
+    } catch (error) {
+      console.error("Error analyzing career:", error);
+      // Use fallback data
+      const fallback = fallbackData[selectedCareer] || fallbackData.webdev;
+      setResult({ ...fallback, career: careerName });
+      toast.error("Using cached results. AI analysis temporarily unavailable.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const getRiskColor = (risk: string) => {

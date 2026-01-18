@@ -1,1 +1,25 @@
 project_id = "pcairgkwxhftphpaiuuc"
+
+[functions.ai-career]
+verify_jwt = false
+
+[functions.ai-jobs]
+verify_jwt = false
+
+[functions.ai-roadmap]
+verify_jwt = false
+
+[functions.ai-mindmap]
+verify_jwt = false
+
+[functions.ai-projects]
+verify_jwt = false
+
+[functions.ai-resume]
+verify_jwt = false
+
+[functions.ai-search]
+verify_jwt = false
+
+[functions.ai-skills]
+verify_jwt = false

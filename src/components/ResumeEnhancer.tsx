@@ -14,6 +14,8 @@ interface ResumeAnalysis {
   keywords_missing?: string[];
 }
 
+import { supabase } from "@/integrations/supabase/client";
+
 const ResumeEnhancer = () => {
   const [resumeText, setResumeText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -26,66 +28,43 @@ const ResumeEnhancer = () => {
     
     setIsAnalyzing(true);
     
-    // Simulate analysis delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Generate static analysis based on content
-    const wordCount = resumeText.split(/\s+/).length;
-    const hasEmail = /\S+@\S+\.\S+/.test(resumeText);
-    const hasPhone = /[\d]{10}/.test(resumeText);
-    const hasSkills = resumeText.toLowerCase().includes("skill");
-    const hasExperience = resumeText.toLowerCase().includes("experience");
-    
-    let score = 50;
-    let atsScore = 45;
-    
-    if (hasEmail) { score += 10; atsScore += 10; }
-    if (hasPhone) { score += 5; atsScore += 5; }
-    if (hasSkills) { score += 10; atsScore += 15; }
-    if (hasExperience) { score += 15; atsScore += 10; }
-    if (wordCount > 100) { score += 5; }
-    if (wordCount > 200) { score += 5; atsScore += 5; }
-    
-    const strengths: string[] = [];
-    const improvements: string[] = [];
-    const keywords_missing: string[] = [];
-    
-    if (hasEmail) strengths.push("Contact email is clearly visible");
-    if (hasPhone) strengths.push("Phone number is included");
-    if (hasSkills) strengths.push("Skills section is present");
-    if (hasExperience) strengths.push("Work experience is documented");
-    if (wordCount > 150) strengths.push("Good content length");
-    
-    if (!hasEmail) improvements.push("Add a professional email address");
-    if (!hasPhone) improvements.push("Include a contact phone number");
-    if (!hasSkills) improvements.push("Add a dedicated skills section with relevant technologies");
-    if (!hasExperience) improvements.push("Include detailed work experience with achievements");
-    if (wordCount < 100) improvements.push("Add more detail to showcase your qualifications");
-    
-    if (!resumeText.toLowerCase().includes("python")) keywords_missing.push("Python");
-    if (!resumeText.toLowerCase().includes("javascript")) keywords_missing.push("JavaScript");
-    if (!resumeText.toLowerCase().includes("react")) keywords_missing.push("React");
-    if (!resumeText.toLowerCase().includes("sql")) keywords_missing.push("SQL");
-    if (!resumeText.toLowerCase().includes("git")) keywords_missing.push("Git");
-    
-    const analysisResult: ResumeAnalysis = {
-      score: Math.min(95, score),
-      atsScore: Math.min(90, atsScore),
-      strengths: strengths.length > 0 ? strengths : ["Resume has been submitted for review"],
-      improvements: improvements.length > 0 ? improvements : ["Continue adding relevant experience"],
-      suggestions: [
-        "Use action verbs to describe achievements",
-        "Quantify accomplishments with numbers",
-        "Tailor content to job descriptions",
-        "Keep formatting consistent and clean"
-      ],
-      keywords_missing: keywords_missing.slice(0, 5)
-    };
-    
-    setAnalysis(analysisResult);
-    toast.success("Resume analysis complete!");
-    
-    setIsAnalyzing(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-resume', {
+        body: { resumeText }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setAnalysis(data);
+      toast.success("Resume analysis complete!");
+    } catch (error) {
+      console.error("Error analyzing resume:", error);
+      // Generate fallback analysis
+      const wordCount = resumeText.split(/\s+/).length;
+      const hasEmail = /\S+@\S+\.\S+/.test(resumeText);
+      const hasSkills = resumeText.toLowerCase().includes("skill");
+      
+      let score = 50;
+      if (hasEmail) score += 15;
+      if (hasSkills) score += 15;
+      if (wordCount > 100) score += 10;
+      
+      setAnalysis({
+        score: Math.min(85, score),
+        atsScore: Math.min(80, score - 5),
+        strengths: hasEmail ? ["Contact information present"] : ["Resume submitted"],
+        improvements: ["Add more specific achievements", "Include technical skills"],
+        suggestions: ["Use action verbs", "Quantify accomplishments"],
+        keywords_missing: ["Python", "JavaScript", "React"]
+      });
+      toast.error("Using basic analysis. AI analysis temporarily unavailable.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const getScoreColor = (score: number) => {
