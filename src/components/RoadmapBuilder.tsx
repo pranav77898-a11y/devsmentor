@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Map, Sparkles, Download, Loader2, CheckCircle, Circle, ExternalLink, Crown, Lock, Edit } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Map, Sparkles, Download, Loader2, CheckCircle, Circle, ExternalLink, Crown, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import UpgradePrompt from "@/components/UpgradePrompt";
@@ -22,6 +21,67 @@ interface RoadmapEdge {
   to: string;
 }
 
+// Static roadmap templates
+const roadmapTemplates: Record<string, { nodes: RoadmapNode[]; edges: RoadmapEdge[] }> = {
+  react: {
+    nodes: [
+      { id: "1", label: "HTML/CSS Basics", level: 0, x: 450, y: 50, duration: "2 weeks", description: "Learn the fundamentals of web structure and styling." },
+      { id: "2", label: "JavaScript Fundamentals", level: 1, x: 450, y: 130, duration: "4 weeks", description: "Master core JavaScript concepts including ES6+." },
+      { id: "3", label: "React Basics", level: 2, x: 450, y: 210, duration: "3 weeks", description: "Components, JSX, and React fundamentals." },
+      { id: "4", label: "State & Props", level: 2, x: 250, y: 290, duration: "2 weeks", description: "Data flow and component communication." },
+      { id: "5", label: "React Hooks", level: 2, x: 650, y: 290, duration: "3 weeks", description: "useState, useEffect, useContext, custom hooks." },
+      { id: "6", label: "React Router", level: 3, x: 250, y: 370, duration: "1 week", description: "Client-side routing and navigation." },
+      { id: "7", label: "State Management", level: 3, x: 650, y: 370, duration: "3 weeks", description: "Redux, Context API, Zustand." },
+      { id: "8", label: "API Integration", level: 4, x: 450, y: 450, duration: "2 weeks", description: "REST APIs, fetch, axios, React Query." },
+      { id: "9", label: "Testing", level: 5, x: 250, y: 530, duration: "2 weeks", description: "Jest, React Testing Library." },
+      { id: "10", label: "Build & Deploy", level: 5, x: 650, y: 530, duration: "1 week", description: "Vite, Vercel, CI/CD basics." },
+    ],
+    edges: [
+      { from: "1", to: "2" }, { from: "2", to: "3" }, { from: "3", to: "4" }, { from: "3", to: "5" },
+      { from: "4", to: "6" }, { from: "5", to: "7" }, { from: "6", to: "8" }, { from: "7", to: "8" },
+      { from: "8", to: "9" }, { from: "8", to: "10" }
+    ]
+  },
+  python: {
+    nodes: [
+      { id: "1", label: "Python Basics", level: 0, x: 450, y: 50, duration: "3 weeks", description: "Variables, data types, operators." },
+      { id: "2", label: "Control Flow", level: 1, x: 450, y: 130, duration: "2 weeks", description: "Loops, conditionals, functions." },
+      { id: "3", label: "Data Structures", level: 2, x: 450, y: 210, duration: "3 weeks", description: "Lists, dicts, sets, tuples." },
+      { id: "4", label: "OOP Concepts", level: 2, x: 250, y: 290, duration: "3 weeks", description: "Classes, inheritance, polymorphism." },
+      { id: "5", label: "File Handling", level: 2, x: 650, y: 290, duration: "1 week", description: "Reading/writing files, JSON." },
+      { id: "6", label: "Web Dev (Django/Flask)", level: 3, x: 250, y: 370, duration: "4 weeks", description: "Build web applications." },
+      { id: "7", label: "Data Science", level: 3, x: 650, y: 370, duration: "4 weeks", description: "NumPy, Pandas, Matplotlib." },
+      { id: "8", label: "APIs & Databases", level: 4, x: 450, y: 450, duration: "3 weeks", description: "REST APIs, SQL, ORM." },
+      { id: "9", label: "Testing", level: 5, x: 250, y: 530, duration: "2 weeks", description: "pytest, unittest." },
+      { id: "10", label: "Deployment", level: 5, x: 650, y: 530, duration: "2 weeks", description: "Docker, AWS, CI/CD." },
+    ],
+    edges: [
+      { from: "1", to: "2" }, { from: "2", to: "3" }, { from: "3", to: "4" }, { from: "3", to: "5" },
+      { from: "4", to: "6" }, { from: "5", to: "7" }, { from: "6", to: "8" }, { from: "7", to: "8" },
+      { from: "8", to: "9" }, { from: "8", to: "10" }
+    ]
+  },
+  default: {
+    nodes: [
+      { id: "1", label: "Fundamentals", level: 0, x: 450, y: 50, duration: "3 weeks", description: "Core concepts and basics." },
+      { id: "2", label: "Intermediate Concepts", level: 1, x: 450, y: 130, duration: "4 weeks", description: "Build on the fundamentals." },
+      { id: "3", label: "Practical Skills", level: 2, x: 450, y: 210, duration: "3 weeks", description: "Hands-on practice." },
+      { id: "4", label: "Tools & Frameworks", level: 2, x: 250, y: 290, duration: "3 weeks", description: "Industry-standard tools." },
+      { id: "5", label: "Best Practices", level: 2, x: 650, y: 290, duration: "2 weeks", description: "Code quality and standards." },
+      { id: "6", label: "Projects", level: 3, x: 250, y: 370, duration: "4 weeks", description: "Build real-world projects." },
+      { id: "7", label: "Advanced Topics", level: 3, x: 650, y: 370, duration: "4 weeks", description: "Deep dive into advanced concepts." },
+      { id: "8", label: "Integration", level: 4, x: 450, y: 450, duration: "2 weeks", description: "Connect everything together." },
+      { id: "9", label: "Testing & QA", level: 5, x: 250, y: 530, duration: "2 weeks", description: "Quality assurance." },
+      { id: "10", label: "Deployment", level: 5, x: 650, y: 530, duration: "2 weeks", description: "Go live with your work." },
+    ],
+    edges: [
+      { from: "1", to: "2" }, { from: "2", to: "3" }, { from: "3", to: "4" }, { from: "3", to: "5" },
+      { from: "4", to: "6" }, { from: "5", to: "7" }, { from: "6", to: "8" }, { from: "7", to: "8" },
+      { from: "8", to: "9" }, { from: "8", to: "10" }
+    ]
+  }
+};
+
 const RoadmapBuilder = () => {
   const [subject, setSubject] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -37,21 +97,24 @@ const RoadmapBuilder = () => {
     setIsGenerating(true);
     setCompletedNodes(new Set());
     
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-roadmap', {
-        body: { subject }
-      });
-
-      if (error) throw error;
-      
-      setRoadmap(data);
-      toast.success("Roadmap generated successfully!");
-    } catch (error) {
-      console.error("Roadmap generation error:", error);
-      toast.error("Failed to generate roadmap. Please try again.");
-    } finally {
-      setIsGenerating(false);
+    // Simulate generation delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const lowerSubject = subject.toLowerCase();
+    let template;
+    
+    if (lowerSubject.includes("react")) {
+      template = roadmapTemplates.react;
+    } else if (lowerSubject.includes("python")) {
+      template = roadmapTemplates.python;
+    } else {
+      template = roadmapTemplates.default;
     }
+    
+    setRoadmap(template);
+    toast.success("Roadmap generated successfully!");
+    
+    setIsGenerating(false);
   };
 
   const toggleNodeComplete = (nodeId: string) => {
@@ -124,11 +187,11 @@ const RoadmapBuilder = () => {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
             <Map className="w-4 h-4" />
-            <span>AI Roadmap Builder</span>
+            <span>Roadmap Builder</span>
           </div>
           <h2 className="section-title">Generate Your Learning Roadmap</h2>
           <p className="section-subtitle">
-            Enter any tech topic and our AI will create a visual, node-based learning path with resources.
+            Enter any tech topic to create a visual, node-based learning path with resources.
           </p>
           
           {/* Pro/Free indicator */}
@@ -387,26 +450,6 @@ const RoadmapBuilder = () => {
                 
                 {selectedNode.description && (
                   <p className="text-sm text-muted-foreground mb-4">{selectedNode.description}</p>
-                )}
-                
-                {selectedNode.resources && selectedNode.resources.length > 0 && (
-                  <div>
-                    <h5 className="text-sm font-semibold mb-2">Learning Resources</h5>
-                    <div className="space-y-2">
-                      {selectedNode.resources.map((resource, i) => (
-                        <a
-                          key={i}
-                          href={resource.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-sm text-primary hover:underline"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          {resource.title}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
                 )}
               </div>
             )}

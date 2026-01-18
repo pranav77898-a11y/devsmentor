@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { GitBranch, Sparkles, Download, Loader2, ZoomIn, ZoomOut, Crown, Lock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import UpgradePrompt from "@/components/UpgradePrompt";
@@ -21,6 +20,61 @@ interface MindMapData {
   nodes: MindMapNode[];
 }
 
+// Static mind map templates
+const mindMapTemplates: Record<string, MindMapData> = {
+  react: {
+    centralTopic: "React.js",
+    nodes: [
+      { id: "1", label: "Components", category: "Fundamentals", color: "#22d3ee", x: 200, y: 100, connections: ["center"] },
+      { id: "2", label: "Hooks", category: "Fundamentals", color: "#22d3ee", x: 400, y: 80, connections: ["center"] },
+      { id: "3", label: "State Management", category: "Concepts", color: "#8b5cf6", x: 600, y: 100, connections: ["center"] },
+      { id: "4", label: "React Router", category: "Tools", color: "#10b981", x: 800, y: 150, connections: ["center"] },
+      { id: "5", label: "Context API", category: "Concepts", color: "#8b5cf6", x: 900, y: 300, connections: ["center"] },
+      { id: "6", label: "Redux", category: "Tools", color: "#10b981", x: 850, y: 450, connections: ["center"] },
+      { id: "7", label: "Testing", category: "Best Practices", color: "#f59e0b", x: 700, y: 520, connections: ["center"] },
+      { id: "8", label: "Performance", category: "Advanced", color: "#ef4444", x: 500, y: 550, connections: ["center"] },
+      { id: "9", label: "Server Components", category: "Advanced", color: "#ef4444", x: 300, y: 520, connections: ["center"] },
+      { id: "10", label: "React Query", category: "Tools", color: "#10b981", x: 150, y: 400, connections: ["center"] },
+      { id: "11", label: "JSX", category: "Fundamentals", color: "#22d3ee", x: 100, y: 250, connections: ["center"] },
+      { id: "12", label: "Props", category: "Fundamentals", color: "#22d3ee", x: 150, y: 150, connections: ["center"] },
+    ]
+  },
+  python: {
+    centralTopic: "Python",
+    nodes: [
+      { id: "1", label: "Variables", category: "Fundamentals", color: "#22d3ee", x: 200, y: 100, connections: ["center"] },
+      { id: "2", label: "Functions", category: "Fundamentals", color: "#22d3ee", x: 400, y: 80, connections: ["center"] },
+      { id: "3", label: "OOP", category: "Concepts", color: "#8b5cf6", x: 600, y: 100, connections: ["center"] },
+      { id: "4", label: "Django", category: "Tools", color: "#10b981", x: 800, y: 150, connections: ["center"] },
+      { id: "5", label: "Flask", category: "Tools", color: "#10b981", x: 900, y: 300, connections: ["center"] },
+      { id: "6", label: "Data Science", category: "Advanced", color: "#ef4444", x: 850, y: 450, connections: ["center"] },
+      { id: "7", label: "Machine Learning", category: "Advanced", color: "#ef4444", x: 700, y: 520, connections: ["center"] },
+      { id: "8", label: "Testing", category: "Best Practices", color: "#f59e0b", x: 500, y: 550, connections: ["center"] },
+      { id: "9", label: "Decorators", category: "Concepts", color: "#8b5cf6", x: 300, y: 520, connections: ["center"] },
+      { id: "10", label: "NumPy", category: "Tools", color: "#10b981", x: 150, y: 400, connections: ["center"] },
+      { id: "11", label: "Pandas", category: "Tools", color: "#10b981", x: 100, y: 250, connections: ["center"] },
+      { id: "12", label: "Lists & Dicts", category: "Fundamentals", color: "#22d3ee", x: 150, y: 150, connections: ["center"] },
+    ]
+  },
+  default: {
+    centralTopic: "Learning Topic",
+    nodes: [
+      { id: "1", label: "Basics", category: "Fundamentals", color: "#22d3ee", x: 200, y: 100, connections: ["center"] },
+      { id: "2", label: "Core Concepts", category: "Fundamentals", color: "#22d3ee", x: 400, y: 80, connections: ["center"] },
+      { id: "3", label: "Theory", category: "Concepts", color: "#8b5cf6", x: 600, y: 100, connections: ["center"] },
+      { id: "4", label: "Tools", category: "Tools", color: "#10b981", x: 800, y: 150, connections: ["center"] },
+      { id: "5", label: "Frameworks", category: "Tools", color: "#10b981", x: 900, y: 300, connections: ["center"] },
+      { id: "6", label: "Advanced Topics", category: "Advanced", color: "#ef4444", x: 850, y: 450, connections: ["center"] },
+      { id: "7", label: "Best Practices", category: "Best Practices", color: "#f59e0b", x: 700, y: 520, connections: ["center"] },
+      { id: "8", label: "Projects", category: "Resources", color: "#ec4899", x: 500, y: 550, connections: ["center"] },
+      { id: "9", label: "Patterns", category: "Concepts", color: "#8b5cf6", x: 300, y: 520, connections: ["center"] },
+      { id: "10", label: "Libraries", category: "Tools", color: "#10b981", x: 150, y: 400, connections: ["center"] },
+      { id: "11", label: "Documentation", category: "Resources", color: "#ec4899", x: 100, y: 250, connections: ["center"] },
+      { id: "12", label: "Tutorials", category: "Resources", color: "#ec4899", x: 150, y: 150, connections: ["center"] },
+    ]
+  }
+};
+
 const MindMapBuilder = () => {
   const [topic, setTopic] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -34,31 +88,28 @@ const MindMapBuilder = () => {
   const generateMindMap = async () => {
     if (!topic.trim()) return;
     
-    // Check if user is Pro for full interactive mind maps
-    if (!isPro) {
-      setShowUpgrade(true);
-      return;
-    }
-    
     setIsGenerating(true);
     
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-mindmap', {
-        body: { topic }
-      });
-
-      if (error) throw error;
-      
-      setMindMap(data);
-      setZoom(1);
-      setPan({ x: 0, y: 0 });
-      toast.success("Mind map generated successfully!");
-    } catch (error) {
-      console.error("Mind map generation error:", error);
-      toast.error("Failed to generate mind map. Please try again.");
-    } finally {
-      setIsGenerating(false);
+    // Simulate generation delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const lowerTopic = topic.toLowerCase();
+    let template: MindMapData;
+    
+    if (lowerTopic.includes("react")) {
+      template = { ...mindMapTemplates.react, centralTopic: topic };
+    } else if (lowerTopic.includes("python")) {
+      template = { ...mindMapTemplates.python, centralTopic: topic };
+    } else {
+      template = { ...mindMapTemplates.default, centralTopic: topic };
     }
+    
+    setMindMap(template);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    toast.success("Mind map generated successfully!");
+    
+    setIsGenerating(false);
   };
 
   const handleExport = () => {
@@ -97,8 +148,8 @@ const MindMapBuilder = () => {
     <section id="mindmap" className="py-24 relative bg-muted/20">
       {showUpgrade && (
         <UpgradePrompt 
-          feature="Interactive Mind Maps" 
-          message="Upgrade to Pro to generate and export interactive node-based mind maps!"
+          feature="Export Mind Maps" 
+          message="Upgrade to Pro to export mind maps as PNG!"
           onClose={() => setShowUpgrade(false)}
         />
       )}
@@ -107,7 +158,7 @@ const MindMapBuilder = () => {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
             <GitBranch className="w-4 h-4" />
-            <span>AI Mind Map Generator</span>
+            <span>Mind Map Generator</span>
           </div>
           <h2 className="section-title">Visualize Your Learning</h2>
           <p className="section-subtitle">
@@ -124,7 +175,7 @@ const MindMapBuilder = () => {
             ) : (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/50 border border-border text-muted-foreground">
                 <Lock className="w-3 h-3" />
-                <span>Pro Feature • Upgrade to Access</span>
+                <span>Export requires Pro</span>
               </div>
             )}
           </div>
@@ -142,7 +193,7 @@ const MindMapBuilder = () => {
               onKeyDown={(e) => e.key === 'Enter' && generateMindMap()}
             />
             <Button
-              variant={isPro ? "hero" : "pro"}
+              variant="hero"
               onClick={generateMindMap}
               disabled={!topic.trim() || isGenerating}
             >
@@ -151,15 +202,10 @@ const MindMapBuilder = () => {
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Generating...
                 </>
-              ) : isPro ? (
+              ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
                   Generate
-                </>
-              ) : (
-                <>
-                  <Lock className="w-4 h-4" />
-                  Pro Feature
                 </>
               )}
             </Button>
@@ -180,9 +226,18 @@ const MindMapBuilder = () => {
                 <Button variant="glass" size="sm" onClick={() => setZoom(z => Math.min(2, z + 0.1))}>
                   <ZoomIn className="w-4 h-4" />
                 </Button>
-                <Button variant="glass" size="sm" className="gap-2" onClick={handleExport}>
-                  <Download className="w-4 h-4" />
-                  Export PNG
+                <Button variant={isPro ? "glass" : "pro"} size="sm" className="gap-2" onClick={handleExport}>
+                  {isPro ? (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Export PNG
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-4 h-4" />
+                      Export (Pro)
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -200,31 +255,6 @@ const MindMapBuilder = () => {
                 {/* Background */}
                 <rect width="1200" height="600" fill="hsl(240 10% 5%)" />
                 
-                {/* Connection lines */}
-                {mindMap.nodes.map((node) => (
-                  node.connections.map((targetId, i) => {
-                    const targetNode = mindMap.nodes.find(n => n.id === targetId);
-                    if (!targetNode) return null;
-                    
-                    const cx = 600;
-                    const cy = 300;
-                    const midX = (cx + node.x) / 2;
-                    const midY = (cy + node.y) / 2 + (Math.random() * 20 - 10);
-                    
-                    return (
-                      <path
-                        key={`${node.id}-${targetId}-${i}`}
-                        d={`M ${cx} ${cy} Q ${midX} ${midY} ${node.x} ${node.y}`}
-                        stroke={node.color}
-                        strokeWidth="2"
-                        fill="none"
-                        opacity="0.6"
-                        className="transition-all duration-300 hover:opacity-100 hover:stroke-[3]"
-                      />
-                    );
-                  })
-                ))}
-
                 {/* Draw lines from center to each node */}
                 {mindMap.nodes.map((node) => {
                   const cx = 600;
@@ -344,13 +374,9 @@ const MindMapBuilder = () => {
         {!mindMap && !isGenerating && (
           <div className="glass-card p-16 text-center max-w-2xl mx-auto">
             <GitBranch className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-semibold mb-2 text-muted-foreground">
-              {isPro ? "No Mind Map Generated" : "Pro Feature"}
-            </h3>
+            <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No Mind Map Generated</h3>
             <p className="text-muted-foreground">
-              {isPro 
-                ? "Enter a topic above to generate an interactive node-based mind map."
-                : "Upgrade to Pro to generate interactive mind maps with export functionality."}
+              Enter a topic above to generate an interactive node-based mind map.
             </p>
           </div>
         )}

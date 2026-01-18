@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileText, Upload, Sparkles, Download, CheckCircle2, AlertCircle, Loader2, Crown, Lock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import UpgradePrompt from "@/components/UpgradePrompt";
-import { useNavigate } from "react-router-dom";
 
 interface ResumeAnalysis {
   score: number;
@@ -14,7 +12,6 @@ interface ResumeAnalysis {
   suggestions: string[];
   atsScore: number;
   keywords_missing?: string[];
-  format_issues?: string[];
 }
 
 const ResumeEnhancer = () => {
@@ -23,28 +20,72 @@ const ResumeEnhancer = () => {
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const { isPro } = useSubscription();
-  const navigate = useNavigate();
 
   const analyzeResume = async () => {
     if (!resumeText.trim()) return;
     
     setIsAnalyzing(true);
     
-    try {
-      const { data, error } = await supabase.functions.invoke('analyze-resume', {
-        body: { resumeText }
-      });
-
-      if (error) throw error;
-      
-      setAnalysis(data);
-      toast.success("Resume analysis complete!");
-    } catch (error) {
-      console.error("Resume analysis error:", error);
-      toast.error("Failed to analyze resume. Please try again.");
-    } finally {
-      setIsAnalyzing(false);
-    }
+    // Simulate analysis delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Generate static analysis based on content
+    const wordCount = resumeText.split(/\s+/).length;
+    const hasEmail = /\S+@\S+\.\S+/.test(resumeText);
+    const hasPhone = /[\d]{10}/.test(resumeText);
+    const hasSkills = resumeText.toLowerCase().includes("skill");
+    const hasExperience = resumeText.toLowerCase().includes("experience");
+    
+    let score = 50;
+    let atsScore = 45;
+    
+    if (hasEmail) { score += 10; atsScore += 10; }
+    if (hasPhone) { score += 5; atsScore += 5; }
+    if (hasSkills) { score += 10; atsScore += 15; }
+    if (hasExperience) { score += 15; atsScore += 10; }
+    if (wordCount > 100) { score += 5; }
+    if (wordCount > 200) { score += 5; atsScore += 5; }
+    
+    const strengths: string[] = [];
+    const improvements: string[] = [];
+    const keywords_missing: string[] = [];
+    
+    if (hasEmail) strengths.push("Contact email is clearly visible");
+    if (hasPhone) strengths.push("Phone number is included");
+    if (hasSkills) strengths.push("Skills section is present");
+    if (hasExperience) strengths.push("Work experience is documented");
+    if (wordCount > 150) strengths.push("Good content length");
+    
+    if (!hasEmail) improvements.push("Add a professional email address");
+    if (!hasPhone) improvements.push("Include a contact phone number");
+    if (!hasSkills) improvements.push("Add a dedicated skills section with relevant technologies");
+    if (!hasExperience) improvements.push("Include detailed work experience with achievements");
+    if (wordCount < 100) improvements.push("Add more detail to showcase your qualifications");
+    
+    if (!resumeText.toLowerCase().includes("python")) keywords_missing.push("Python");
+    if (!resumeText.toLowerCase().includes("javascript")) keywords_missing.push("JavaScript");
+    if (!resumeText.toLowerCase().includes("react")) keywords_missing.push("React");
+    if (!resumeText.toLowerCase().includes("sql")) keywords_missing.push("SQL");
+    if (!resumeText.toLowerCase().includes("git")) keywords_missing.push("Git");
+    
+    const analysisResult: ResumeAnalysis = {
+      score: Math.min(95, score),
+      atsScore: Math.min(90, atsScore),
+      strengths: strengths.length > 0 ? strengths : ["Resume has been submitted for review"],
+      improvements: improvements.length > 0 ? improvements : ["Continue adding relevant experience"],
+      suggestions: [
+        "Use action verbs to describe achievements",
+        "Quantify accomplishments with numbers",
+        "Tailor content to job descriptions",
+        "Keep formatting consistent and clean"
+      ],
+      keywords_missing: keywords_missing.slice(0, 5)
+    };
+    
+    setAnalysis(analysisResult);
+    toast.success("Resume analysis complete!");
+    
+    setIsAnalyzing(false);
   };
 
   const getScoreColor = (score: number) => {
@@ -64,7 +105,6 @@ const ResumeEnhancer = () => {
       setShowUpgrade(true);
       return;
     }
-    // Pro feature: Download enhanced resume
     toast.success("Enhanced resume downloading... (Pro feature)");
   };
 
@@ -72,7 +112,7 @@ const ResumeEnhancer = () => {
     <section className="py-24 relative">
       {showUpgrade && (
         <UpgradePrompt 
-          feature="AI Resume Enhancement" 
+          feature="Resume Enhancement" 
           message="Upgrade to Pro to download AI-enhanced resumes with optimized formatting and keywords!"
           onClose={() => setShowUpgrade(false)}
         />
@@ -82,11 +122,11 @@ const ResumeEnhancer = () => {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
             <FileText className="w-4 h-4" />
-            <span>AI Resume Enhancer</span>
+            <span>Resume Enhancer</span>
           </div>
           <h2 className="section-title">Make Your Resume Stand Out</h2>
           <p className="section-subtitle">
-            AI-powered analysis to improve your resume, boost ATS scores, and get more interviews.
+            Get feedback to improve your resume, boost ATS scores, and get more interviews.
           </p>
           
           {/* Pro/Free indicator */}
@@ -94,7 +134,7 @@ const ResumeEnhancer = () => {
             {isPro ? (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30 text-cyan-400">
                 <Crown className="w-3 h-3" />
-                <span>Full AI Enhancement Access</span>
+                <span>Full Resume Enhancement</span>
               </div>
             ) : (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/50 border border-border text-muted-foreground">
@@ -262,7 +302,7 @@ Software Engineer at XYZ Corp (2021-Present)
                   {/* Missing Keywords */}
                   {analysis.keywords_missing && analysis.keywords_missing.length > 0 && (
                     <div className="glass-card p-6">
-                      <h4 className="font-semibold mb-3 text-primary">Missing Keywords</h4>
+                      <h4 className="font-semibold mb-3 text-primary">Consider Adding Keywords</h4>
                       <div className="flex flex-wrap gap-2">
                         {analysis.keywords_missing.map((keyword, i) => (
                           <span key={i} className="text-xs px-3 py-1 rounded-full bg-primary/20 text-primary border border-primary/30">
@@ -297,7 +337,7 @@ Software Engineer at XYZ Corp (2021-Present)
                   <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
                   <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No Analysis Yet</h3>
                   <p className="text-muted-foreground">
-                    Paste your resume text and click Analyze to get AI-powered suggestions.
+                    Paste your resume text and click Analyze to get suggestions.
                   </p>
                 </div>
               )}
