@@ -67,10 +67,9 @@ export const useSubscription = () => {
           setTier(data.tier as SubscriptionTier);
         }
       } else {
-        // Create default free subscription if it doesn't exist
-        await supabase
-          .from('user_subscriptions')
-          .insert({ user_id: user.id, tier: 'free' });
+        // Subscription should exist via trigger - if missing, default to free
+        // DO NOT attempt to create from client - RLS prevents this and trigger handles it
+        console.warn('Subscription record missing for user - defaulting to free tier');
         setTier('free');
       }
     } catch (error) {
