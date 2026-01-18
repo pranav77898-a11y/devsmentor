@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Search, Sparkles, ExternalLink, Loader2, BookOpen, Video, FileText, Code, Lock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Search, Sparkles, ExternalLink, Loader2, BookOpen, Video, FileText, Code } from "lucide-react";
 import { toast } from "sonner";
-import { useSubscription } from "@/hooks/useSubscription";
-import UpgradePrompt from "@/components/UpgradePrompt";
 
 interface SearchResult {
   title: string;
@@ -14,44 +11,66 @@ interface SearchResult {
   source: string;
 }
 
+// Static sample search results
+const sampleResults: Record<string, SearchResult[]> = {
+  react: [
+    { title: "React Official Documentation", description: "Learn React from the official docs with step-by-step tutorials.", url: "https://react.dev", type: "documentation", source: "react.dev" },
+    { title: "React Hooks Tutorial", description: "Complete guide to React Hooks - useState, useEffect, and more.", url: "https://react.dev/learn", type: "tutorial", source: "react.dev" },
+    { title: "React Crash Course 2024", description: "Learn React in 2 hours with this comprehensive crash course.", url: "https://youtube.com", type: "video", source: "YouTube" },
+    { title: "Building a React App from Scratch", description: "Step-by-step guide to creating your first React application.", url: "https://freecodecamp.org", type: "article", source: "freeCodeCamp" },
+  ],
+  python: [
+    { title: "Python Official Documentation", description: "The official Python documentation and tutorials.", url: "https://docs.python.org", type: "documentation", source: "python.org" },
+    { title: "Python for Beginners", description: "Learn Python programming from scratch with practical examples.", url: "https://python.org/about/gettingstarted", type: "tutorial", source: "Python.org" },
+    { title: "Python Full Course", description: "Complete Python tutorial for beginners to advanced.", url: "https://youtube.com", type: "video", source: "YouTube" },
+    { title: "100 Days of Python", description: "Master Python with 100 days of coding challenges.", url: "https://udemy.com", type: "tutorial", source: "Udemy" },
+  ],
+  javascript: [
+    { title: "MDN JavaScript Guide", description: "Comprehensive JavaScript documentation and tutorials.", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript", type: "documentation", source: "MDN" },
+    { title: "JavaScript ES6+ Features", description: "Modern JavaScript features you should know.", url: "https://javascript.info", type: "tutorial", source: "javascript.info" },
+    { title: "JavaScript Projects for Beginners", description: "Build 10 projects to learn JavaScript practically.", url: "https://youtube.com", type: "video", source: "YouTube" },
+    { title: "Eloquent JavaScript", description: "Free book on modern JavaScript programming.", url: "https://eloquentjavascript.net", type: "article", source: "eloquentjavascript.net" },
+  ],
+  default: [
+    { title: "freeCodeCamp", description: "Learn to code for free with thousands of tutorials and projects.", url: "https://freecodecamp.org", type: "tutorial", source: "freeCodeCamp" },
+    { title: "MDN Web Docs", description: "Resources for developers, by developers.", url: "https://developer.mozilla.org", type: "documentation", source: "MDN" },
+    { title: "Stack Overflow", description: "Where developers learn, share, and build careers.", url: "https://stackoverflow.com", type: "code", source: "Stack Overflow" },
+    { title: "GitHub Learning Lab", description: "Grow your skills with hands-on learning experiences.", url: "https://skills.github.com", type: "tutorial", source: "GitHub" },
+  ],
+};
+
 const AISearchEngine = () => {
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
-  const { isPro, limits, recordUsage } = useSubscription();
 
-  const isProFeature = !isPro && !limits.canUseAISearch;
-
-  const searchWithAI = async () => {
+  const searchResources = async () => {
     if (!query.trim()) {
       toast.error("Please enter a search query");
-      return;
-    }
-
-    if (isProFeature) {
-      toast.error("AI Search is a Pro feature. Upgrade to access!");
       return;
     }
     
     setIsSearching(true);
     
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-search', {
-        body: { query }
-      });
-
-      if (error) throw error;
-      
-      await recordUsage("ai_search");
-      
-      setResults(data.results || []);
-      toast.success(`Found ${data.results?.length || 0} results!`);
-    } catch (error) {
-      console.error("AI search error:", error);
-      toast.error("Failed to search. Please try again.");
-    } finally {
-      setIsSearching(false);
+    // Simulate search delay
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    const lowerQuery = query.toLowerCase();
+    let searchResults: SearchResult[] = [];
+    
+    if (lowerQuery.includes("react")) {
+      searchResults = sampleResults.react;
+    } else if (lowerQuery.includes("python")) {
+      searchResults = sampleResults.python;
+    } else if (lowerQuery.includes("javascript") || lowerQuery.includes("js")) {
+      searchResults = sampleResults.javascript;
+    } else {
+      searchResults = sampleResults.default;
     }
+    
+    setResults(searchResults);
+    toast.success(`Found ${searchResults.length} results!`);
+    setIsSearching(false);
   };
 
   const getTypeIcon = (type: string) => {
@@ -80,25 +99,13 @@ const AISearchEngine = () => {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
             <Sparkles className="w-4 h-4" />
-            <span>AI Search Engine</span>
-            {isProFeature && (
-              <span className="ml-2 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs">Pro</span>
-            )}
+            <span>Resource Search</span>
           </div>
-          <h2 className="section-title">Search Tech Resources with AI</h2>
+          <h2 className="section-title">Search Tech Resources</h2>
           <p className="section-subtitle">
-            Find documentation, tutorials, videos, and code examples using AI-powered search.
+            Find documentation, tutorials, videos, and code examples for any technology.
           </p>
         </div>
-
-        {isProFeature && (
-          <div className="max-w-2xl mx-auto mb-8">
-            <UpgradePrompt 
-              feature="AI Search"
-              message="AI Search is a Pro-only feature. Upgrade to search with AI!"
-            />
-          </div>
-        )}
 
         <div className="max-w-3xl mx-auto mb-12">
           <div className="glass-card p-6">
@@ -111,14 +118,13 @@ const AISearchEngine = () => {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="input-dark pl-12 w-full"
-                  onKeyDown={(e) => e.key === 'Enter' && !isProFeature && searchWithAI()}
-                  disabled={isProFeature}
+                  onKeyDown={(e) => e.key === 'Enter' && searchResources()}
                 />
               </div>
               <Button
                 variant="hero"
-                onClick={searchWithAI}
-                disabled={!query.trim() || isSearching || isProFeature}
+                onClick={searchResources}
+                disabled={!query.trim() || isSearching}
                 className="md:w-auto w-full"
               >
                 {isSearching ? (
@@ -126,15 +132,10 @@ const AISearchEngine = () => {
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Searching...
                   </>
-                ) : isProFeature ? (
-                  <>
-                    <Lock className="w-4 h-4" />
-                    Pro Only
-                  </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4" />
-                    Search with AI
+                    <Search className="w-4 h-4" />
+                    Search
                   </>
                 )}
               </Button>
@@ -145,7 +146,7 @@ const AISearchEngine = () => {
         {isSearching && (
           <div className="glass-card p-16 text-center max-w-2xl mx-auto">
             <Loader2 className="w-16 h-16 text-primary mx-auto mb-4 animate-spin" />
-            <h3 className="text-xl font-semibold mb-2">AI is searching...</h3>
+            <h3 className="text-xl font-semibold mb-2">Searching...</h3>
             <p className="text-muted-foreground">Finding the best resources for "{query}"</p>
           </div>
         )}
@@ -176,7 +177,7 @@ const AISearchEngine = () => {
           </div>
         )}
 
-        {!isSearching && results.length === 0 && !isProFeature && (
+        {!isSearching && results.length === 0 && (
           <div className="glass-card p-16 text-center max-w-2xl mx-auto">
             <Search className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-semibold mb-2 text-muted-foreground">Search for Resources</h3>

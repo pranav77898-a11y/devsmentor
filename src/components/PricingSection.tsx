@@ -9,28 +9,28 @@ const PricingSection = () => {
   const { user } = useAuth();
 
   const freeFeatures = [
-    { name: "Career Analysis (3/day)", included: true },
+    { name: "Career Exploration", included: true },
     { name: "Basic Roadmaps", included: true },
     { name: "View Mind Maps", included: true },
     { name: "10 Project Ideas", included: true },
-    { name: "Job Search (5/day)", included: true },
-    { name: "Resume Analysis", included: true },
-    { name: "AI Search (5/day)", included: true },
+    { name: "Job Search", included: true },
+    { name: "Resume Tips", included: true },
+    { name: "Resource Search", included: true },
     { name: "Editable Roadmaps", included: false },
     { name: "Export Roadmaps/Mind Maps", included: false },
     { name: "100+ Detailed Projects", included: false },
-    { name: "AI Resume Enhancement", included: false },
+    { name: "Advanced Resume Analysis", included: false },
     { name: "Priority Support", included: false },
   ];
 
   const proFeatures = [
     { name: "Unlimited Career Analysis", included: true },
-    { name: "AI Roadmap Builder", included: true },
+    { name: "Interactive Roadmap Builder", included: true },
     { name: "Interactive Mind Maps", included: true },
     { name: "100+ Project Ideas", included: true },
     { name: "Advanced Job Finder", included: true },
-    { name: "AI Resume Enhancer", included: true },
-    { name: "Unlimited AI Search", included: true },
+    { name: "Full Resume Analysis", included: true },
+    { name: "Unlimited Resource Search", included: true },
     { name: "Editable Roadmaps", included: true },
     { name: "Export to PNG/PDF", included: true },
     { name: "Step-by-Step Tutorials", included: true },
@@ -69,7 +69,7 @@ const PricingSection = () => {
           </div>
           <h2 className="section-title">Start Free, Upgrade When Ready</h2>
           <p className="section-subtitle">
-            Get started with powerful free features. Upgrade to Pro for unlimited AI access and advanced tools.
+            Get started with powerful free features. Upgrade to Pro for unlimited access and advanced tools.
           </p>
         </div>
 
@@ -115,7 +115,7 @@ const PricingSection = () => {
             <div className="text-center mb-8">
               <h3 className="text-2xl font-bold mb-2 gradient-text">Pro</h3>
               <div className="flex items-baseline justify-center gap-2 mb-2">
-                <span className="text-4xl font-bold gradient-text">₹99</span>
+                <span className="text-4xl font-bold gradient-text">₹49</span>
                 <span className="text-muted-foreground">/month</span>
               </div>
               <p className="text-muted-foreground text-sm">Cancel anytime</p>
@@ -132,7 +132,7 @@ const PricingSection = () => {
 
             <Button variant="pro" className="w-full" size="lg" onClick={handleUpgrade}>
               <Zap className="w-5 h-5" />
-              Upgrade to Pro – ₹99
+              Upgrade to Pro – ₹49
             </Button>
 
             {/* Guarantee */}

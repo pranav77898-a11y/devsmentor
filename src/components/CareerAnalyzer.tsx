@@ -1,12 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Brain, Sparkles, TrendingUp, AlertTriangle, DollarSign, Target, Loader2, Crown } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/hooks/useSubscription";
 import UpgradePrompt from "@/components/UpgradePrompt";
-import UsageBadge from "@/components/UsageBadge";
 
 const careerPaths = [
   { id: "aiml", name: "AI/ML Engineering", icon: "🤖" },
@@ -19,75 +17,111 @@ const careerPaths = [
   { id: "game", name: "Game Development", icon: "🎮" },
 ];
 
-interface AnalysisResult {
-  career: string;
-  summary: string;
-  confidenceScore: number;
-  salaryRange: {
-    entry: string;
-    mid: string;
-    senior: string;
-  };
-  risk: string;
-  alternatives: string[];
-  requiredSkills?: string[];
-  growthOutlook?: string;
-  topCompanies?: string[];
-  demandTrend?: string;
-  learningPath?: string;
-}
+// Static career data
+const careerData: Record<string, any> = {
+  aiml: {
+    career: "AI/ML Engineering",
+    summary: "AI/ML Engineering is one of the fastest-growing fields in tech. Engineers build intelligent systems using machine learning, deep learning, and data science techniques.",
+    confidenceScore: 92,
+    salaryRange: { entry: "₹8-15 LPA", mid: "₹20-35 LPA", senior: "₹45-80 LPA" },
+    risk: "Low",
+    alternatives: ["Data Science", "Software Engineering", "Research Scientist"],
+    requiredSkills: ["Python", "TensorFlow", "PyTorch", "Mathematics", "Statistics", "Deep Learning"],
+    demandTrend: "Increasing",
+  },
+  webdev: {
+    career: "Full Stack Development",
+    summary: "Full Stack developers build complete web applications, handling both frontend and backend. High demand across startups and enterprises.",
+    confidenceScore: 88,
+    salaryRange: { entry: "₹5-10 LPA", mid: "₹15-25 LPA", senior: "₹30-50 LPA" },
+    risk: "Low",
+    alternatives: ["Frontend Developer", "Backend Developer", "Mobile Developer"],
+    requiredSkills: ["JavaScript", "React", "Node.js", "SQL", "Git", "REST APIs"],
+    demandTrend: "Increasing",
+  },
+  mobile: {
+    career: "Mobile Development",
+    summary: "Mobile developers create applications for iOS and Android platforms. Growing demand with the mobile-first approach in most companies.",
+    confidenceScore: 85,
+    salaryRange: { entry: "₹6-12 LPA", mid: "₹18-30 LPA", senior: "₹35-55 LPA" },
+    risk: "Low",
+    alternatives: ["Full Stack Developer", "React Native Developer", "Flutter Developer"],
+    requiredSkills: ["Swift/Kotlin", "React Native", "Flutter", "REST APIs", "UI/UX"],
+    demandTrend: "Increasing",
+  },
+  devops: {
+    career: "DevOps/Cloud Engineering",
+    summary: "DevOps engineers bridge development and operations, focusing on automation, CI/CD, and cloud infrastructure management.",
+    confidenceScore: 90,
+    salaryRange: { entry: "₹7-14 LPA", mid: "₹20-35 LPA", senior: "₹40-70 LPA" },
+    risk: "Low",
+    alternatives: ["Site Reliability Engineer", "Cloud Architect", "Platform Engineer"],
+    requiredSkills: ["AWS/Azure/GCP", "Docker", "Kubernetes", "Linux", "Terraform", "CI/CD"],
+    demandTrend: "Increasing",
+  },
+  cybersec: {
+    career: "Cybersecurity",
+    summary: "Cybersecurity professionals protect systems and data from threats. Critical role with increasing importance due to rising cyber attacks.",
+    confidenceScore: 87,
+    salaryRange: { entry: "₹6-12 LPA", mid: "₹18-30 LPA", senior: "₹35-60 LPA" },
+    risk: "Low",
+    alternatives: ["Security Analyst", "Penetration Tester", "Security Architect"],
+    requiredSkills: ["Network Security", "Ethical Hacking", "SIEM", "Cryptography", "Linux"],
+    demandTrend: "Increasing",
+  },
+  data: {
+    career: "Data Science",
+    summary: "Data Scientists analyze complex data to derive insights and build predictive models. High demand in analytics-driven organizations.",
+    confidenceScore: 86,
+    salaryRange: { entry: "₹7-14 LPA", mid: "₹20-35 LPA", senior: "₹40-70 LPA" },
+    risk: "Low",
+    alternatives: ["ML Engineer", "Data Analyst", "Business Intelligence Analyst"],
+    requiredSkills: ["Python", "R", "SQL", "Machine Learning", "Statistics", "Data Visualization"],
+    demandTrend: "Increasing",
+  },
+  blockchain: {
+    career: "Blockchain/Web3 Development",
+    summary: "Blockchain developers build decentralized applications and smart contracts. Emerging field with growing opportunities in DeFi and NFTs.",
+    confidenceScore: 75,
+    salaryRange: { entry: "₹8-15 LPA", mid: "₹25-45 LPA", senior: "₹50-90 LPA" },
+    risk: "Medium",
+    alternatives: ["Smart Contract Developer", "Full Stack Developer", "Crypto Researcher"],
+    requiredSkills: ["Solidity", "Ethereum", "Smart Contracts", "Web3.js", "DeFi Protocols"],
+    demandTrend: "Increasing",
+  },
+  game: {
+    career: "Game Development",
+    summary: "Game developers create interactive games for various platforms. Creative field combining programming with art and design.",
+    confidenceScore: 78,
+    salaryRange: { entry: "₹4-10 LPA", mid: "₹15-28 LPA", senior: "₹30-50 LPA" },
+    risk: "Medium",
+    alternatives: ["Unity Developer", "Unreal Developer", "Graphics Programmer"],
+    requiredSkills: ["Unity/Unreal", "C++/C#", "3D Graphics", "Game Design", "Physics Engines"],
+    demandTrend: "Stable",
+  },
+};
 
 const CareerAnalyzer = () => {
   const [selectedCareer, setSelectedCareer] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [result, setResult] = useState<any | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [dailyUsage, setDailyUsage] = useState(0);
   const navigate = useNavigate();
-  const { isPro, limits, recordUsage, fetchUsageCount } = useSubscription();
-
-  useEffect(() => {
-    const loadUsage = async () => {
-      const count = await fetchUsageCount('career_analysis');
-      setDailyUsage(count);
-    };
-    loadUsage();
-  }, [fetchUsageCount]);
+  const { isPro } = useSubscription();
 
   const handleAnalyze = async () => {
     if (!selectedCareer) return;
     
-    // Check rate limit for free users
-    if (!isPro && dailyUsage >= limits.careerAnalysis) {
-      setShowUpgrade(true);
-      return;
-    }
-    
     setIsAnalyzing(true);
     
-    try {
-      const careerName = careerPaths.find(c => c.id === selectedCareer)?.name || selectedCareer;
-      
-      const { data, error } = await supabase.functions.invoke('career-analysis', {
-        body: { careerPath: careerName }
-      });
-
-      if (error) throw error;
-      
-      // Record usage for free users
-      if (!isPro) {
-        await recordUsage('career_analysis');
-        setDailyUsage(prev => prev + 1);
-      }
-      
-      setResult(data);
-      toast.success("Career analysis complete!");
-    } catch (error) {
-      console.error("Career analysis error:", error);
-      toast.error("Failed to analyze career. Please try again.");
-    } finally {
-      setIsAnalyzing(false);
-    }
+    // Simulate loading
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const data = careerData[selectedCareer];
+    setResult(data);
+    toast.success("Career analysis complete!");
+    
+    setIsAnalyzing(false);
   };
 
   const getRiskColor = (risk: string) => {
@@ -104,7 +138,7 @@ const CareerAnalyzer = () => {
       {showUpgrade && (
         <UpgradePrompt 
           feature="Career Analysis" 
-          message="You've used all 3 free career analyses today. Upgrade to Pro for unlimited access!"
+          message="Upgrade to Pro for detailed career insights and personalized recommendations!"
           onClose={() => setShowUpgrade(false)}
         />
       )}
@@ -113,23 +147,12 @@ const CareerAnalyzer = () => {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
             <Brain className="w-4 h-4" />
-            <span>AI Career Analyzer</span>
+            <span>Career Analyzer</span>
           </div>
           <h2 className="section-title">Find Your Perfect Tech Career</h2>
           <p className="section-subtitle">
-            Select a career path and let AI analyze market trends, salary ranges, and give you personalized recommendations.
+            Select a career path to explore market trends, salary ranges, and get personalized recommendations.
           </p>
-          
-          {/* Usage Badge for Free Users */}
-          {!isPro && (
-            <div className="mt-4 flex justify-center">
-              <UsageBadge 
-                used={dailyUsage} 
-                limit={limits.careerAnalysis} 
-                feature="analyses" 
-              />
-            </div>
-          )}
           
           {isPro && (
             <div className="mt-4 flex justify-center">
@@ -233,7 +256,7 @@ const CareerAnalyzer = () => {
                     <span className="text-sm">Alternatives</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {result.alternatives?.slice(0, 2).map((alt, i) => (
+                    {result.alternatives?.slice(0, 2).map((alt: string, i: number) => (
                       <span key={i} className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground">
                         {alt}
                       </span>
@@ -246,7 +269,7 @@ const CareerAnalyzer = () => {
                 <div className="mb-6">
                   <h4 className="text-sm font-medium text-muted-foreground mb-2">Required Skills</h4>
                   <div className="flex flex-wrap gap-2">
-                    {result.requiredSkills.map((skill, i) => (
+                    {result.requiredSkills.map((skill: string, i: number) => (
                       <span key={i} className="text-xs px-3 py-1 rounded-full bg-primary/20 text-primary border border-primary/30">
                         {skill}
                       </span>

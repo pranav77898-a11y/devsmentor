@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Rocket, ExternalLink, ChevronDown, ChevronUp, Code, Book, Github, Loader2, Sparkles, Crown, Lock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import UpgradePrompt from "@/components/UpgradePrompt";
@@ -17,12 +16,121 @@ interface ProjectDetails {
   features: string[];
   estimatedTime: string;
   learningOutcomes: string[];
-  resources: { title: string; url: string }[];
 }
 
 const categories = ["All", "Web Development", "AI/ML", "Mobile", "DevOps", "Cybersecurity", "Data Science"];
 
-const FREE_PROJECT_LIMIT = 10;
+// Static sample projects
+const sampleProjects: ProjectDetails[] = [
+  {
+    name: "Personal Portfolio Website",
+    difficulty: "Beginner",
+    skills: ["HTML", "CSS", "JavaScript"],
+    description: "Build a stunning personal portfolio to showcase your projects and skills to potential employers.",
+    category: "Web Development",
+    techStack: ["React", "Tailwind CSS", "Framer Motion"],
+    apis: [],
+    features: ["Responsive design", "Dark mode", "Contact form", "Project gallery"],
+    estimatedTime: "1-2 weeks",
+    learningOutcomes: ["React fundamentals", "CSS animations", "Responsive design patterns"]
+  },
+  {
+    name: "Task Management App",
+    difficulty: "Medium",
+    skills: ["React", "Node.js", "Database"],
+    description: "Create a full-featured task management application with user authentication and real-time updates.",
+    category: "Web Development",
+    techStack: ["React", "Node.js", "PostgreSQL", "Socket.io"],
+    apis: ["REST API"],
+    features: ["User authentication", "Task CRUD", "Real-time sync", "Team collaboration"],
+    estimatedTime: "3-4 weeks",
+    learningOutcomes: ["Full-stack development", "Database design", "Real-time communication"]
+  },
+  {
+    name: "E-commerce Platform",
+    difficulty: "Advanced",
+    skills: ["React", "Node.js", "Payment Integration"],
+    description: "Build a complete e-commerce platform with product catalog, cart, and payment processing.",
+    category: "Web Development",
+    techStack: ["Next.js", "Stripe", "PostgreSQL", "Redis"],
+    apis: ["Stripe API", "Shipping API"],
+    features: ["Product catalog", "Shopping cart", "Payment processing", "Order tracking"],
+    estimatedTime: "6-8 weeks",
+    learningOutcomes: ["Payment integration", "Inventory management", "Security best practices"]
+  },
+  {
+    name: "Weather Dashboard",
+    difficulty: "Beginner",
+    skills: ["JavaScript", "API Integration"],
+    description: "Create a weather dashboard that displays current weather and forecasts for any city.",
+    category: "Web Development",
+    techStack: ["React", "Chart.js", "Tailwind CSS"],
+    apis: ["OpenWeather API"],
+    features: ["City search", "5-day forecast", "Weather charts", "Location detection"],
+    estimatedTime: "1 week",
+    learningOutcomes: ["API integration", "Data visualization", "Error handling"]
+  },
+  {
+    name: "Image Classification Model",
+    difficulty: "Medium",
+    skills: ["Python", "TensorFlow", "Deep Learning"],
+    description: "Build an image classification model using CNN to identify objects in images.",
+    category: "AI/ML",
+    techStack: ["Python", "TensorFlow", "Keras", "OpenCV"],
+    apis: [],
+    features: ["Image preprocessing", "CNN architecture", "Model training", "Prediction API"],
+    estimatedTime: "3-4 weeks",
+    learningOutcomes: ["Deep learning", "Computer vision", "Model optimization"]
+  },
+  {
+    name: "Expense Tracker Mobile App",
+    difficulty: "Medium",
+    skills: ["React Native", "Mobile Development"],
+    description: "Build a cross-platform mobile app to track expenses and manage personal finances.",
+    category: "Mobile",
+    techStack: ["React Native", "Expo", "SQLite", "Charts"],
+    apis: [],
+    features: ["Expense logging", "Categories", "Monthly reports", "Budget goals"],
+    estimatedTime: "3-4 weeks",
+    learningOutcomes: ["Mobile development", "Local storage", "Data visualization"]
+  },
+  {
+    name: "CI/CD Pipeline Setup",
+    difficulty: "Medium",
+    skills: ["Docker", "GitHub Actions", "AWS"],
+    description: "Set up a complete CI/CD pipeline for automated testing and deployment.",
+    category: "DevOps",
+    techStack: ["Docker", "GitHub Actions", "AWS", "Terraform"],
+    apis: ["AWS APIs"],
+    features: ["Automated testing", "Container builds", "Blue-green deployment", "Monitoring"],
+    estimatedTime: "2-3 weeks",
+    learningOutcomes: ["CI/CD concepts", "Containerization", "Infrastructure as code"]
+  },
+  {
+    name: "Network Security Scanner",
+    difficulty: "Advanced",
+    skills: ["Python", "Networking", "Security"],
+    description: "Build a network security scanner to identify vulnerabilities in web applications.",
+    category: "Cybersecurity",
+    techStack: ["Python", "Scapy", "Nmap", "SQLite"],
+    apis: [],
+    features: ["Port scanning", "Vulnerability detection", "Report generation", "Scheduled scans"],
+    estimatedTime: "4-6 weeks",
+    learningOutcomes: ["Network protocols", "Security testing", "Ethical hacking"]
+  },
+  {
+    name: "Data Analysis Dashboard",
+    difficulty: "Medium",
+    skills: ["Python", "Pandas", "Visualization"],
+    description: "Create an interactive dashboard to analyze and visualize large datasets.",
+    category: "Data Science",
+    techStack: ["Python", "Pandas", "Plotly", "Streamlit"],
+    apis: [],
+    features: ["Data upload", "Interactive charts", "Statistical analysis", "Export reports"],
+    estimatedTime: "2-3 weeks",
+    learningOutcomes: ["Data analysis", "Statistical methods", "Dashboard design"]
+  }
+];
 
 const ProjectIdeas = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -32,60 +140,42 @@ const ProjectIdeas = () => {
   const [generatedProjects, setGeneratedProjects] = useState<ProjectDetails[]>([]);
   const [expandedProject, setExpandedProject] = useState<number | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [generationCount, setGenerationCount] = useState(0);
-  const { isPro, recordUsage, fetchUsageCount } = useSubscription();
-
-  useEffect(() => {
-    const loadUsage = async () => {
-      const count = await fetchUsageCount('project_generation');
-      setGenerationCount(count);
-    };
-    loadUsage();
-  }, [fetchUsageCount]);
+  const { isPro } = useSubscription();
 
   const generateProjects = async () => {
     if (!searchQuery.trim()) {
       toast.error("Please enter a topic to generate projects");
       return;
     }
-
-    // Check rate limit for free users
-    if (!isPro && generationCount >= 3) {
-      setShowUpgrade(true);
-      return;
-    }
     
     setIsGenerating(true);
     
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-projects', {
-        body: { topic: searchQuery, category: selectedCategory }
-      });
-
-      if (error) throw error;
+    // Simulate generation delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Filter sample projects based on query and category
+    let filteredProjects = sampleProjects.filter(project => {
+      const matchesQuery = 
+        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.techStack.some(tech => tech.toLowerCase().includes(searchQuery.toLowerCase()));
       
-      // Record usage for free users
-      if (!isPro) {
-        await recordUsage('project_generation');
-        setGenerationCount(prev => prev + 1);
-      }
+      const matchesCategory = selectedCategory === "All" || project.category === selectedCategory;
       
-      // For free users, limit to 10 projects
-      const projects = data.projects || [];
-      const limitedProjects = isPro ? projects : projects.slice(0, FREE_PROJECT_LIMIT);
-      
-      setGeneratedProjects(limitedProjects);
-      toast.success(`Generated ${limitedProjects.length} project ideas!`);
-      
-      if (!isPro && projects.length > FREE_PROJECT_LIMIT) {
-        toast.info(`Upgrade to Pro to see all ${projects.length}+ project ideas!`);
-      }
-    } catch (error) {
-      console.error("Project generation error:", error);
-      toast.error("Failed to generate projects. Please try again.");
-    } finally {
-      setIsGenerating(false);
+      return matchesQuery && matchesCategory;
+    });
+    
+    // If no matches, show all projects in the category
+    if (filteredProjects.length === 0) {
+      filteredProjects = selectedCategory === "All" 
+        ? sampleProjects 
+        : sampleProjects.filter(p => p.category === selectedCategory);
     }
+    
+    setGeneratedProjects(filteredProjects);
+    toast.success(`Generated ${filteredProjects.length} project ideas!`);
+    
+    setIsGenerating(false);
   };
 
   const getDifficultyClass = (difficulty: string) => {
@@ -104,7 +194,7 @@ const ProjectIdeas = () => {
       {showUpgrade && (
         <UpgradePrompt 
           feature="100+ Project Ideas" 
-          message="You've reached the daily generation limit. Upgrade to Pro for unlimited project generations and 100+ detailed ideas!"
+          message="Upgrade to Pro for 100+ detailed project ideas with step-by-step tutorials!"
           onClose={() => setShowUpgrade(false)}
         />
       )}
@@ -113,7 +203,7 @@ const ProjectIdeas = () => {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-6">
             <Rocket className="w-4 h-4" />
-            <span>AI Project Generator</span>
+            <span>Project Generator</span>
           </div>
           <h2 className="section-title">Build Real-World Projects</h2>
           <p className="section-subtitle">
@@ -125,12 +215,12 @@ const ProjectIdeas = () => {
             {isPro ? (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30 text-cyan-400">
                 <Crown className="w-3 h-3" />
-                <span>100+ Project Ideas • Unlimited Generations</span>
+                <span>100+ Project Ideas</span>
               </div>
             ) : (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/50 border border-border text-muted-foreground">
                 <Lock className="w-3 h-3" />
-                <span>{FREE_PROJECT_LIMIT} Projects • {3 - generationCount} generations remaining today</span>
+                <span>Sample Projects • Upgrade for 100+</span>
               </div>
             )}
           </div>
@@ -192,7 +282,7 @@ const ProjectIdeas = () => {
             <Loader2 className="w-16 h-16 text-primary mx-auto mb-4 animate-spin" />
             <h3 className="text-xl font-semibold mb-2">Generating Project Ideas...</h3>
             <p className="text-muted-foreground">
-              AI is creating detailed project plans for "{searchQuery}"
+              Creating detailed project plans for "{searchQuery}"
             </p>
           </div>
         )}
@@ -292,29 +382,6 @@ const ProjectIdeas = () => {
                           ))}
                         </ul>
                       </div>
-
-                      {/* Resources */}
-                      {project.resources && project.resources.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
-                            <Github className="w-4 h-4" /> Resources
-                          </h4>
-                          <div className="space-y-2">
-                            {project.resources.map((resource, i) => (
-                              <a
-                                key={i}
-                                href={resource.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 text-xs text-primary hover:underline"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                {resource.title}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
