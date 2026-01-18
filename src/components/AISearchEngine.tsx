@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Search, Sparkles, ExternalLink, Loader2, BookOpen, Video, FileText, Code } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SearchResult {
   title: string;
@@ -11,33 +12,12 @@ interface SearchResult {
   source: string;
 }
 
-// Static sample search results
-const sampleResults: Record<string, SearchResult[]> = {
-  react: [
-    { title: "React Official Documentation", description: "Learn React from the official docs with step-by-step tutorials.", url: "https://react.dev", type: "documentation", source: "react.dev" },
-    { title: "React Hooks Tutorial", description: "Complete guide to React Hooks - useState, useEffect, and more.", url: "https://react.dev/learn", type: "tutorial", source: "react.dev" },
-    { title: "React Crash Course 2024", description: "Learn React in 2 hours with this comprehensive crash course.", url: "https://youtube.com", type: "video", source: "YouTube" },
-    { title: "Building a React App from Scratch", description: "Step-by-step guide to creating your first React application.", url: "https://freecodecamp.org", type: "article", source: "freeCodeCamp" },
-  ],
-  python: [
-    { title: "Python Official Documentation", description: "The official Python documentation and tutorials.", url: "https://docs.python.org", type: "documentation", source: "python.org" },
-    { title: "Python for Beginners", description: "Learn Python programming from scratch with practical examples.", url: "https://python.org/about/gettingstarted", type: "tutorial", source: "Python.org" },
-    { title: "Python Full Course", description: "Complete Python tutorial for beginners to advanced.", url: "https://youtube.com", type: "video", source: "YouTube" },
-    { title: "100 Days of Python", description: "Master Python with 100 days of coding challenges.", url: "https://udemy.com", type: "tutorial", source: "Udemy" },
-  ],
-  javascript: [
-    { title: "MDN JavaScript Guide", description: "Comprehensive JavaScript documentation and tutorials.", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript", type: "documentation", source: "MDN" },
-    { title: "JavaScript ES6+ Features", description: "Modern JavaScript features you should know.", url: "https://javascript.info", type: "tutorial", source: "javascript.info" },
-    { title: "JavaScript Projects for Beginners", description: "Build 10 projects to learn JavaScript practically.", url: "https://youtube.com", type: "video", source: "YouTube" },
-    { title: "Eloquent JavaScript", description: "Free book on modern JavaScript programming.", url: "https://eloquentjavascript.net", type: "article", source: "eloquentjavascript.net" },
-  ],
-  default: [
-    { title: "freeCodeCamp", description: "Learn to code for free with thousands of tutorials and projects.", url: "https://freecodecamp.org", type: "tutorial", source: "freeCodeCamp" },
-    { title: "MDN Web Docs", description: "Resources for developers, by developers.", url: "https://developer.mozilla.org", type: "documentation", source: "MDN" },
-    { title: "Stack Overflow", description: "Where developers learn, share, and build careers.", url: "https://stackoverflow.com", type: "code", source: "Stack Overflow" },
-    { title: "GitHub Learning Lab", description: "Grow your skills with hands-on learning experiences.", url: "https://skills.github.com", type: "tutorial", source: "GitHub" },
-  ],
-};
+// Fallback results
+const fallbackResults: SearchResult[] = [
+  { title: "freeCodeCamp", description: "Learn to code for free with thousands of tutorials.", url: "https://freecodecamp.org", type: "tutorial", source: "freeCodeCamp" },
+  { title: "MDN Web Docs", description: "Resources for developers, by developers.", url: "https://developer.mozilla.org", type: "documentation", source: "MDN" },
+  { title: "Stack Overflow", description: "Where developers learn, share, and build careers.", url: "https://stackoverflow.com", type: "code", source: "Stack Overflow" },
+];
 
 const AISearchEngine = () => {
   const [query, setQuery] = useState("");
@@ -52,25 +32,27 @@ const AISearchEngine = () => {
     
     setIsSearching(true);
     
-    // Simulate search delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const lowerQuery = query.toLowerCase();
-    let searchResults: SearchResult[] = [];
-    
-    if (lowerQuery.includes("react")) {
-      searchResults = sampleResults.react;
-    } else if (lowerQuery.includes("python")) {
-      searchResults = sampleResults.python;
-    } else if (lowerQuery.includes("javascript") || lowerQuery.includes("js")) {
-      searchResults = sampleResults.javascript;
-    } else {
-      searchResults = sampleResults.default;
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-search', {
+        body: { query }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const searchResults = data.results || [];
+      setResults(searchResults.length > 0 ? searchResults : fallbackResults);
+      toast.success(`Found ${searchResults.length || fallbackResults.length} results!`);
+    } catch (error) {
+      console.error("Error searching resources:", error);
+      setResults(fallbackResults);
+      toast.error("Using cached results. AI search temporarily unavailable.");
+    } finally {
+      setIsSearching(false);
     }
-    
-    setResults(searchResults);
-    toast.success(`Found ${searchResults.length} results!`);
-    setIsSearching(false);
   };
 
   const getTypeIcon = (type: string) => {

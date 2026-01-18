@@ -75,6 +75,8 @@ const mindMapTemplates: Record<string, MindMapData> = {
   }
 };
 
+import { supabase } from "@/integrations/supabase/client";
+
 const MindMapBuilder = () => {
   const [topic, setTopic] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -90,26 +92,38 @@ const MindMapBuilder = () => {
     
     setIsGenerating(true);
     
-    // Simulate generation delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const lowerTopic = topic.toLowerCase();
-    let template: MindMapData;
-    
-    if (lowerTopic.includes("react")) {
-      template = { ...mindMapTemplates.react, centralTopic: topic };
-    } else if (lowerTopic.includes("python")) {
-      template = { ...mindMapTemplates.python, centralTopic: topic };
-    } else {
-      template = { ...mindMapTemplates.default, centralTopic: topic };
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-mindmap', {
+        body: { topic }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setMindMap(data);
+      toast.success("Mind map generated successfully!");
+    } catch (error) {
+      console.error("Error generating mind map:", error);
+      // Use fallback template
+      const lowerTopic = topic.toLowerCase();
+      let template: MindMapData;
+      if (lowerTopic.includes("react")) {
+        template = { ...mindMapTemplates.react, centralTopic: topic };
+      } else if (lowerTopic.includes("python")) {
+        template = { ...mindMapTemplates.python, centralTopic: topic };
+      } else {
+        template = { ...mindMapTemplates.default, centralTopic: topic };
+      }
+      setMindMap(template);
+      toast.error("Using cached template. AI generation temporarily unavailable.");
+    } finally {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      setIsGenerating(false);
     }
-    
-    setMindMap(template);
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-    toast.success("Mind map generated successfully!");
-    
-    setIsGenerating(false);
   };
 
   const handleExport = () => {

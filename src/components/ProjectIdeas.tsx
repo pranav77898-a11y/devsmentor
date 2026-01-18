@@ -132,6 +132,8 @@ const sampleProjects: ProjectDetails[] = [
   }
 ];
 
+import { supabase } from "@/integrations/supabase/client";
+
 const ProjectIdeas = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showAll, setShowAll] = useState(false);
@@ -150,32 +152,36 @@ const ProjectIdeas = () => {
     
     setIsGenerating(true);
     
-    // Simulate generation delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Filter sample projects based on query and category
-    let filteredProjects = sampleProjects.filter(project => {
-      const matchesQuery = 
-        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.techStack.some(tech => tech.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      const matchesCategory = selectedCategory === "All" || project.category === selectedCategory;
-      
-      return matchesQuery && matchesCategory;
-    });
-    
-    // If no matches, show all projects in the category
-    if (filteredProjects.length === 0) {
-      filteredProjects = selectedCategory === "All" 
-        ? sampleProjects 
-        : sampleProjects.filter(p => p.category === selectedCategory);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-projects', {
+        body: { query: searchQuery, category: selectedCategory }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const projects = data.projects || [];
+      setGeneratedProjects(projects.length > 0 ? projects : sampleProjects);
+      toast.success(`Generated ${projects.length || sampleProjects.length} project ideas!`);
+    } catch (error) {
+      console.error("Error generating projects:", error);
+      // Use fallback projects
+      let filteredProjects = sampleProjects.filter(project => {
+        const matchesQuery = 
+          project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          project.techStack.some(tech => tech.toLowerCase().includes(searchQuery.toLowerCase()));
+        const matchesCategory = selectedCategory === "All" || project.category === selectedCategory;
+        return matchesQuery && matchesCategory;
+      });
+      if (filteredProjects.length === 0) filteredProjects = sampleProjects;
+      setGeneratedProjects(filteredProjects);
+      toast.error("Using cached projects. AI generation temporarily unavailable.");
+    } finally {
+      setIsGenerating(false);
     }
-    
-    setGeneratedProjects(filteredProjects);
-    toast.success(`Generated ${filteredProjects.length} project ideas!`);
-    
-    setIsGenerating(false);
   };
 
   const getDifficultyClass = (difficulty: string) => {

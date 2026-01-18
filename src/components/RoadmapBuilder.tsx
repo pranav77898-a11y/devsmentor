@@ -82,6 +82,8 @@ const roadmapTemplates: Record<string, { nodes: RoadmapNode[]; edges: RoadmapEdg
   }
 };
 
+import { supabase } from "@/integrations/supabase/client";
+
 const RoadmapBuilder = () => {
   const [subject, setSubject] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -97,24 +99,36 @@ const RoadmapBuilder = () => {
     setIsGenerating(true);
     setCompletedNodes(new Set());
     
-    // Simulate generation delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const lowerSubject = subject.toLowerCase();
-    let template;
-    
-    if (lowerSubject.includes("react")) {
-      template = roadmapTemplates.react;
-    } else if (lowerSubject.includes("python")) {
-      template = roadmapTemplates.python;
-    } else {
-      template = roadmapTemplates.default;
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-roadmap', {
+        body: { subject }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setRoadmap(data);
+      toast.success("Roadmap generated successfully!");
+    } catch (error) {
+      console.error("Error generating roadmap:", error);
+      // Use fallback template
+      const lowerSubject = subject.toLowerCase();
+      let template;
+      if (lowerSubject.includes("react")) {
+        template = roadmapTemplates.react;
+      } else if (lowerSubject.includes("python")) {
+        template = roadmapTemplates.python;
+      } else {
+        template = roadmapTemplates.default;
+      }
+      setRoadmap(template);
+      toast.error("Using cached template. AI generation temporarily unavailable.");
+    } finally {
+      setIsGenerating(false);
     }
-    
-    setRoadmap(template);
-    toast.success("Roadmap generated successfully!");
-    
-    setIsGenerating(false);
   };
 
   const toggleNodeComplete = (nodeId: string) => {

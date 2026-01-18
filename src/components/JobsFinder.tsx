@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Briefcase, Search, MapPin, Building2, Clock, ExternalLink, Loader2, Linkedin, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Job {
   title: string;
@@ -18,8 +19,8 @@ interface Job {
   description?: string;
 }
 
-// Static sample jobs data
-const sampleJobs: Job[] = [
+// Fallback sample jobs
+const fallbackJobs: Job[] = [
   {
     title: "Software Engineer",
     company: "Google",
@@ -31,7 +32,7 @@ const sampleJobs: Job[] = [
     linkedInUrl: "https://www.linkedin.com/jobs/search/?keywords=software%20engineer%20google",
     isInternship: false,
     experience: "2-5 years",
-    description: "Join Google to build next-generation technologies that change how users interact with information."
+    description: "Join Google to build next-generation technologies."
   },
   {
     title: "Frontend Developer",
@@ -44,7 +45,7 @@ const sampleJobs: Job[] = [
     linkedInUrl: "https://www.linkedin.com/jobs/search/?keywords=frontend%20developer%20microsoft",
     isInternship: false,
     experience: "1-4 years",
-    description: "Build intuitive user interfaces for Microsoft products used by millions worldwide."
+    description: "Build intuitive user interfaces for Microsoft products."
   },
   {
     title: "Software Engineering Intern",
@@ -57,47 +58,8 @@ const sampleJobs: Job[] = [
     linkedInUrl: "https://www.linkedin.com/jobs/search/?keywords=software%20engineering%20intern%20amazon",
     isInternship: true,
     experience: "0 years",
-    description: "6-month internship opportunity to work on real-world projects at Amazon."
+    description: "6-month internship at Amazon."
   },
-  {
-    title: "Full Stack Developer",
-    company: "Flipkart",
-    location: "Bangalore, India",
-    type: "Full-time",
-    salary: "₹18-32 LPA",
-    posted: "5 days ago",
-    skills: ["React", "Node.js", "MongoDB"],
-    linkedInUrl: "https://www.linkedin.com/jobs/search/?keywords=full%20stack%20developer%20flipkart",
-    isInternship: false,
-    experience: "2-4 years",
-    description: "Work on high-scale e-commerce systems serving millions of users."
-  },
-  {
-    title: "Data Science Intern",
-    company: "Swiggy",
-    location: "Mumbai, India",
-    type: "Internship",
-    salary: "₹50-70K/month",
-    posted: "1 week ago",
-    skills: ["Python", "ML", "SQL"],
-    linkedInUrl: "https://www.linkedin.com/jobs/search/?keywords=data%20science%20intern%20swiggy",
-    isInternship: true,
-    experience: "0 years",
-    description: "Apply data science to optimize food delivery operations."
-  },
-  {
-    title: "DevOps Engineer",
-    company: "Razorpay",
-    location: "Bangalore, India",
-    type: "Full-time",
-    salary: "₹22-40 LPA",
-    posted: "4 days ago",
-    skills: ["AWS", "Kubernetes", "Terraform"],
-    linkedInUrl: "https://www.linkedin.com/jobs/search/?keywords=devops%20engineer%20razorpay",
-    isInternship: false,
-    experience: "3-6 years",
-    description: "Build and maintain the infrastructure for India's leading fintech platform."
-  }
 ];
 
 const JobsFinder = () => {
@@ -115,19 +77,28 @@ const JobsFinder = () => {
     
     setIsSearching(true);
     
-    // Simulate search delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Filter sample jobs based on query
-    const filteredJobs = sampleJobs.filter(job => 
-      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.skills.some(skill => skill.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-    
-    setJobs(filteredJobs.length > 0 ? filteredJobs : sampleJobs);
-    toast.success(`Found ${filteredJobs.length > 0 ? filteredJobs.length : sampleJobs.length} opportunities!`);
-    setIsSearching(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-jobs', {
+        body: { query: searchQuery, jobType }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const jobResults = data.jobs || [];
+      setJobs(jobResults.length > 0 ? jobResults : fallbackJobs);
+      toast.success(`Found ${jobResults.length || fallbackJobs.length} opportunities!`);
+    } catch (error) {
+      console.error("Error searching jobs:", error);
+      // Use fallback jobs on error
+      setJobs(fallbackJobs);
+      toast.error("Using cached results. AI search temporarily unavailable.");
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const filteredJobs = jobs.filter(job => {
